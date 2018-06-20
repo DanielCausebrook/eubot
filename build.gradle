@@ -1,0 +1,30 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+mainClassName='uk.co.causebrook.eubot.TestBot'
+
+group 'uk.co.causebrook'
+version '1.0'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile("org.junit.jupiter:junit-jupiter-api:5.2.0")
+    testRuntime("org.junit.jupiter:junit-jupiter-engine:5.2.0")
+    compile group: 'com.google.code.gson', name: 'gson', version: '2.8.5'
+    compile group: 'javax.websocket', name: 'javax.websocket-client-api', version: '1.1'
+// https://mvnrepository.com/artifact/org.glassfish.tyrus/tyrus-client
+    compile group: 'org.glassfish.tyrus', name: 'tyrus-client', version: '1.13.1'
+
+// https://mvnrepository.com/artifact/org.glassfish.tyrus/tyrus-container-jdk-client
+    compile group: 'org.glassfish.tyrus', name: 'tyrus-container-jdk-client', version: '1.13.1'
+
+    compile group: 'com.google.guava', name: 'guava', version: '25.1-jre'
+
+}
