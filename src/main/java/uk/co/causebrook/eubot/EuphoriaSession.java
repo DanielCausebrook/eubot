@@ -8,12 +8,10 @@ import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.NickReply;
 import uk.co.causebrook.eubot.packets.replies.SendReply;
 
-import javax.websocket.ClientEndpoint;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -23,19 +21,19 @@ import java.util.logging.Logger;
 
 public class EuphoriaSession extends WebsocketConnection implements Session {
     private static Logger logger = Logger.getLogger("connection-log");
-    private final List<SessionListener> rCListeners = new CopyOnWriteArrayList<>();
+    private final List<SessionListener> sListeners = new CopyOnWriteArrayList<>();
     private final List<MessageListener> mListeners = new CopyOnWriteArrayList<>();
     private SessionView session;
     private String nick;
     private String nextNick;
 
-    private EuphoriaSession(URI uri) throws URISyntaxException {
+    private EuphoriaSession(URI uri) {
         super(uri);
         initSessionListeners();
         initStandardListeners(uri.getRawPath());
     }
 
-    private EuphoriaSession(URI uri, CookieConfig cookie) throws URISyntaxException{
+    private EuphoriaSession(URI uri, CookieConfig cookie) {
         super(uri, cookie);
         initSessionListeners();
         initStandardListeners(uri.getRawPath());
@@ -77,23 +75,23 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
             for(MessageListener mL : mListeners) mL.onPacket(new MessageEvent(this, p.getPacket()));
         });
         addPacketListener(SnapshotEvent.class, p -> {
-            for(SessionListener rCL : rCListeners) rCL.onJoin(p);
+            for(SessionListener rCL : sListeners) rCL.onJoin(p);
         });
         addPacketListener(BounceEvent.class, p -> {
-            for(SessionListener rCL : rCListeners) rCL.onBounce(new RoomBounceEvent(this, p.getPacket()));
+            for(SessionListener rCL : sListeners) rCL.onBounce(new RoomBounceEvent(this, p.getPacket()));
         });
         addPacketListener(DisconnectEvent.class, p -> {
-            for(SessionListener rCL : rCListeners) rCL.onDisconnect(p);
+            for(SessionListener rCL : sListeners) rCL.onDisconnect(p);
         });
 
     }
 
     public void addSessionListener(SessionListener listener) {
-        rCListeners.add(listener);
+        sListeners.add(listener);
     }
 
     public void removeSessionListener(SessionListener listener) {
-        rCListeners.remove(listener);
+        sListeners.remove(listener);
     }
 
     @Override
@@ -137,14 +135,14 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public void addReplyListener(SendEvent message, MessageListener replyListener) {
+    public void addMessageReplyListener(SendEvent message, MessageListener replyListener) {
         addMessageListener(e2 -> {
             if(message.getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
         });
     }
 
     @Override
-    public void addReplyListener(SendEvent message, MessageListener replyListener, Duration timeout) {
+    public void addMessageReplyListener(SendEvent message, MessageListener replyListener, Duration timeout) {
         MessageListener l = e2 -> {
             if(message.getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
         };

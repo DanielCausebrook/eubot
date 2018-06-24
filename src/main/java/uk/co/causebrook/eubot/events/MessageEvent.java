@@ -15,6 +15,10 @@ public class MessageEvent extends PacketEvent<SendEvent> {
         this.session = session;
     }
 
+    public Session getSession() {
+        return session;
+    }
+
     public String getContent() {
         return getData().getContent();
     }
@@ -32,11 +36,11 @@ public class MessageEvent extends PacketEvent<SendEvent> {
     }
 
     public void addReplyListener(MessageListener replyListener) {
-        session.addReplyListener(getData(),replyListener);
+        session.addMessageReplyListener(getData(),replyListener);
     }
 
     public void addReplyListener(MessageListener replyListener, Duration timeout) {
-        session.addReplyListener(getData(),replyListener, timeout);
+        session.addMessageReplyListener(getData(),replyListener, timeout);
     }
 
     public void reply(String text) {

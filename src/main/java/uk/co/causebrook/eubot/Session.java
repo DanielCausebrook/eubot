@@ -15,8 +15,8 @@ public interface Session extends Connection {
     void sendMessageWithReplyListener(Send message, MessageListener replyListener);
     void sendMessageWithReplyListener(Send message, MessageListener replyListener, Duration timeout);
 
-    void addReplyListener(SendEvent message, MessageListener replyListener);
-    void addReplyListener(SendEvent message, MessageListener replyListener, Duration timeout);
+    void addMessageReplyListener(SendEvent message, MessageListener replyListener);
+    void addMessageReplyListener(SendEvent message, MessageListener replyListener, Duration timeout);
 
     void addSessionListener(SessionListener listener);
     void removeSessionListener(SessionListener listener);

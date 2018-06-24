@@ -1,8 +1,5 @@
 package uk.co.causebrook.eubot;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimaps;
 import com.google.gson.JsonParseException;
 import uk.co.causebrook.eubot.events.ConnectionListener;
 import uk.co.causebrook.eubot.events.PacketEvent;
@@ -14,8 +11,8 @@ import javax.websocket.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
@@ -31,8 +28,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
     private final URI server;
     private final CookieConfig cookie;
     private javax.websocket.Session session;
-    //private final ListMultimap<Type, PacketListener> pListeners = Multimaps.synchronizedListMultimap(ArrayListMultimap.create());
-    private final ConcurrentHashMap<Type, CopyOnWriteArrayList<PacketListener>> pListeners = new ConcurrentHashMap<>();
+    private final Map<Type, List<PacketListener>> pListeners = new ConcurrentHashMap<>();
     private final List<ConnectionListener> cListeners = new CopyOnWriteArrayList<>();
     private static final Logger logger = Logger.getLogger("connection-log");
 
@@ -88,11 +84,18 @@ public class WebsocketConnection extends Endpoint implements Connection {
         if(p.getData() == null) {
             logger.log(Level.WARNING, "Could not handle " + p.getType() + " packet with null data.");
             //TODO Handle error packets.
+            // Remember to update Behaviour.
             return;
         }
+        // Listeners for this packet type.
         List<PacketListener> listenerList = pListeners.get(p.getData().getClass());
         if(listenerList != null) for (PacketListener l : listenerList) {
             ((PacketListener<T>) l).onPacket(new PacketEvent<>(this, p));
+        }
+        // Listeners for any packet type.
+        listenerList = pListeners.get(Data.class);
+        if(listenerList != null) for (PacketListener l : listenerList) {
+            ((PacketListener<Data>) l).onPacket(new PacketEvent<>(this, (Packet<Data>) p));
         }
     }
 
@@ -119,9 +122,9 @@ public class WebsocketConnection extends Endpoint implements Connection {
     @Override
     public void open() throws IOException {
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-        ClientEndpointConfig config = ClientEndpointConfig.Builder.create()
-                .configurator(cookie.get())
-                .build();
+        ClientEndpointConfig.Builder builder = ClientEndpointConfig.Builder.create();
+        if(cookie != null) builder.configurator(cookie.get());
+        ClientEndpointConfig config = builder.build();
         try {
             container.connectToServer(this, config, server);
         } catch (DeploymentException e) {

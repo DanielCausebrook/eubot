@@ -1,30 +1,17 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.*;
-import uk.co.causebrook.eubot.packets.commands.Login;
-import uk.co.causebrook.eubot.packets.commands.PMInitiate;
-import uk.co.causebrook.eubot.packets.commands.Send;
-import uk.co.causebrook.eubot.packets.commands.Who;
+import uk.co.causebrook.eubot.packets.commands.*;
 import uk.co.causebrook.eubot.packets.events.BounceEvent;
-import uk.co.causebrook.eubot.packets.events.DisconnectEvent;
-import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
-import uk.co.causebrook.eubot.packets.replies.LoginReply;
-import uk.co.causebrook.eubot.packets.replies.PMInitiateReply;
-import uk.co.causebrook.eubot.packets.replies.SendReply;
-import uk.co.causebrook.eubot.packets.replies.WhoReply;
+import uk.co.causebrook.eubot.packets.replies.*;
 
-import java.io.Console;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("SpellCheckingInspection")
@@ -34,56 +21,27 @@ public class TestBot {
         CookieConfig normalCookie = new CookieConfig("cookie.txt");
         CookieConfig accountCookie = new CookieConfig("accountCookie.txt");
 
-        Session room = EuphoriaSession.getRoom("xkcd", normalCookie);
         Session accountRoom = EuphoriaSession.getRoom("toolboxbots", accountCookie);
-
-        room.addSessionListener(new SessionListener() {
-            @Override
-            public void onJoin(PacketEvent<SnapshotEvent> e) {
-                room.setNick("TauBot");
-                logger.info(e.getData().getIdentity());
-            }
-
-            @Override
-            public void onBounce(RoomBounceEvent e) {
-
-            }
-
-            @Override
-            public void onDisconnect(PacketEvent<DisconnectEvent> e) {
-
-            }
-        });
-
-        accountRoom.addSessionListener(new SessionListener() {
-            @Override
-            public void onJoin(PacketEvent<SnapshotEvent> e) {
-                accountRoom.setNick("TauBot");
-            }
-
-            @Override
-            public void onBounce(RoomBounceEvent e) {
-                accountRoom.sendWithReplyListener(new Login("tauneutrin00@gmail.com", "c5Cc#uqk8QGY#UUN"), LoginReply.class, e2 -> {
+        accountRoom.setNick("TauBot");
+        accountRoom.addPacketListener(BounceEvent.class, e -> accountRoom.sendWithReplyListener(
+                new Login("tauneutrin00@gmail.com", "c5Cc#uqk8QGY#UUN"),
+                LoginReply.class, e2 -> {
                     if(e2.getData().getSuccess()) logger.info("Logged into account");
                     else logger.severe("Unable to login to account.");
-                });
-            }
-
-            @Override
-            public void onDisconnect(PacketEvent<DisconnectEvent> e) {
-
-            }
-        });
-
-        room.addMessageListener(e -> {
-            Pattern p = Pattern.compile("^!pm @([\\w]+)$");
-            Matcher m = p.matcher(e.getContent());
-            if(m.matches()) {
-                new Thread(() -> initPMConnection(e.getData().getSender(), m.group(1), room, accountRoom, accountCookie)).start();
-            }
-        });
-        room.open();
+                })
+        );
         accountRoom.open();
+
+        Behaviour pmBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
+        pmBot.addMessageListener(new RegexListener("^!pm @([\\w]+)$",
+                (e, m) -> new Thread(
+                        () -> initPMConnection(e.getData().getSender(), m.group(1), e.getSession(), accountRoom, accountCookie)
+                ).start()
+        ));
+
+        Session room = EuphoriaSession.getRoom("test", normalCookie);
+        pmBot.add(room);
+        room.open();
         Thread.sleep(Duration.ofHours(2).toMillis());
     }
 
