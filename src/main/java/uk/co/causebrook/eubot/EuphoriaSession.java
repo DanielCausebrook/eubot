@@ -2,22 +2,25 @@ package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.*;
 import uk.co.causebrook.eubot.packets.commands.Nick;
+import uk.co.causebrook.eubot.packets.commands.PMInitiate;
 import uk.co.causebrook.eubot.packets.commands.Send;
+import uk.co.causebrook.eubot.packets.commands.Who;
 import uk.co.causebrook.eubot.packets.events.*;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.NickReply;
+import uk.co.causebrook.eubot.packets.replies.PMInitiateReply;
 import uk.co.causebrook.eubot.packets.replies.SendReply;
+import uk.co.causebrook.eubot.packets.replies.WhoReply;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class EuphoriaSession extends WebsocketConnection implements Session {
     private static Logger logger = Logger.getLogger("connection-log");
@@ -49,6 +52,39 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     public static Session getPM(String pmid, CookieConfig cookie) throws URISyntaxException {
         return new EuphoriaSession(new URI("wss://euphoria.io/room/pm:" + pmid + "/ws"), cookie);
+    }
+
+    public Future<Session> initPM(String userId) {
+        CompletableFuture<Session> pmRoom = new CompletableFuture<>();
+        if(hasCookie()) {
+            sendWithReplyListener(new PMInitiate(userId), PMInitiateReply.class, e -> {
+                try {
+                    pmRoom.complete(EuphoriaSession.getPM(e.getData().getPmId(), getCookie()));
+                } catch(URISyntaxException err) {
+                    pmRoom.completeExceptionally(err);
+                }
+            });
+        } else pmRoom.completeExceptionally(new IllegalStateException("This session is not using a cookie and cannot initialise PMs."));
+        return pmRoom;
+    }
+
+    public Future<Session> initPM(SessionView user) {
+        return initPM(user.getId());
+    }
+
+    @Override
+    public Future<List<SessionView>> getUsersByName(String name, String regexIgnored) {
+        String modifiedName = name.replaceAll(regexIgnored, "");
+        CompletableFuture<List<SessionView>> futMatchingUsers = new CompletableFuture<>();
+        sendWithReplyListener(new Who(), WhoReply.class, e2 -> {
+            List<SessionView> sessions = e2.getData().getListing();
+            futMatchingUsers.complete(
+                    sessions.stream()
+                            .filter(sV -> modifiedName.equals(sV.getName().replaceAll(regexIgnored, "")))
+                            .collect(Collectors.toList())
+            );
+        });
+        return futMatchingUsers;
     }
 
     private void initStandardListeners(String room) {

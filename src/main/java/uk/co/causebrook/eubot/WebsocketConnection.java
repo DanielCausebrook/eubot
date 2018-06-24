@@ -13,8 +13,10 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -159,8 +161,38 @@ public class WebsocketConnection extends Endpoint implements Connection {
         addPacketListener(clazz, replyListener);
         nextId++;
 
-        logger.info("Sent packet "+d.toPacket().getType()+" with id "+id+".");
         session.getAsyncRemote().sendText(d.toPacket(id).toJson());
+    }
+
+    @Override
+    public <T extends Data> Future<PacketEvent<T>> sendWithReplyListener(Data d, Class<T> clazz) {
+        if(!isOpen()) throw new IllegalStateException("Connection not open yet.");
+
+        CompletableFuture<PacketEvent<T>> event = new CompletableFuture<>();
+
+        final String id = Long.toHexString(nextId);
+        final PacketListener<T> replyListener = new PacketListener<T>() {
+            @Override
+            public void onPacket(PacketEvent<T> e) {
+                if(e.getPacket().getId().equals(id)) {
+                    event.complete(e);
+                    removePacketListener(clazz, this);
+                }
+            }
+        };
+        addPacketListener(clazz, replyListener);
+        nextId++;
+
+        session.getAsyncRemote().sendText(d.toPacket(id).toJson());
+        return event;
+    }
+
+    public boolean hasCookie() {
+        return cookie != null;
+    }
+
+    public CookieConfig getCookie() {
+        return cookie;
     }
 
     @Override

@@ -4,8 +4,11 @@ import uk.co.causebrook.eubot.events.MessageListener;
 import uk.co.causebrook.eubot.events.SessionListener;
 import uk.co.causebrook.eubot.packets.commands.Send;
 import uk.co.causebrook.eubot.packets.events.SendEvent;
+import uk.co.causebrook.eubot.packets.fields.SessionView;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.Future;
 
 public interface Session extends Connection {
     void setNick(String nick);
@@ -24,4 +27,8 @@ public interface Session extends Connection {
     void addMessageListener(MessageListener listener);
     void removeMessageListener(MessageListener listener);
 
+    Future<Session> initPM(String userId);
+    Future<Session> initPM(SessionView user);
+
+    Future<List<SessionView>> getUsersByName(String name, String regexIgnored);
 }

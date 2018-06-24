@@ -1,10 +1,12 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.ConnectionListener;
+import uk.co.causebrook.eubot.events.PacketEvent;
 import uk.co.causebrook.eubot.events.PacketListener;
 import uk.co.causebrook.eubot.packets.Data;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 
 public interface Connection {
     /**
@@ -21,6 +23,8 @@ public interface Connection {
      * @param <T> The type of the replyWithReplyListener to listen for.
      */
     <T extends Data> void sendWithReplyListener(Data p, Class<T> clazz, PacketListener<T> listener);
+
+    <T extends Data> Future<PacketEvent<T>> sendWithReplyListener(Data p, Class<T> clazz);
 
     /**
      * Adds a listener to be triggered when a packet of the specified type is received.
