@@ -22,10 +22,11 @@ public class RoomBounceEvent extends PacketEvent<BounceEvent> {
         if(failHandler == null) {
             getRoomConnection().send(new Auth(passcode));
         } else {
-            getRoomConnection().sendWithReplyListener(new Auth(passcode), AuthReply.class, e -> {
-                if (e.getData().getSuccess()) successHandler.onPacket(e);
-                else failHandler.onPacket(e);
-            });
+            getRoomConnection().send(new Auth(passcode))
+                    .thenAccept(e -> {
+                        if (e.getData().getSuccess()) successHandler.onPacket(e);
+                        else failHandler.onPacket(e);
+                    });
         }
     }
 

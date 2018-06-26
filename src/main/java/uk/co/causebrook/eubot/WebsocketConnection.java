@@ -6,6 +6,7 @@ import uk.co.causebrook.eubot.events.PacketEvent;
 import uk.co.causebrook.eubot.events.PacketListener;
 import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.Packet;
+import uk.co.causebrook.eubot.packets.ReplyableData;
 
 import javax.websocket.*;
 import java.io.IOException;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -73,7 +73,6 @@ public class WebsocketConnection extends Endpoint implements Connection {
     private void onMessage(String message) {
         try {
             Packet<? extends Data> p = Packet.fromJson(message);
-            logger.info("Received packet "+p.getType()+" with id "+p.getId()+".");
             handle(p);
         } catch (JsonParseException e) {
             logger.info(e.getMessage());
@@ -145,27 +144,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
     }
 
     @Override
-    public <T extends Data> void sendWithReplyListener(Data d, Class<T> clazz, PacketListener<T> listener) {
-        if(!isOpen()) return;
-
-        final String id = Long.toHexString(nextId);
-        final PacketListener<T> replyListener = new PacketListener<T>() {
-            @Override
-            public void onPacket(PacketEvent<T> e) {
-                if(e.getPacket().getId().equals(id)) {
-                    listener.onPacket(e);
-                    removePacketListener(clazz, this);
-                }
-            }
-        };
-        addPacketListener(clazz, replyListener);
-        nextId++;
-
-        session.getAsyncRemote().sendText(d.toPacket(id).toJson());
-    }
-
-    @Override
-    public <T extends Data> Future<PacketEvent<T>> sendWithReplyListener(Data d, Class<T> clazz) {
+    public <T extends Data> CompletableFuture<PacketEvent<T>> send(ReplyableData<T> d) {
         if(!isOpen()) throw new IllegalStateException("Connection not open yet.");
 
         CompletableFuture<PacketEvent<T>> event = new CompletableFuture<>();
@@ -176,11 +155,11 @@ public class WebsocketConnection extends Endpoint implements Connection {
             public void onPacket(PacketEvent<T> e) {
                 if(e.getPacket().getId().equals(id)) {
                     event.complete(e);
-                    removePacketListener(clazz, this);
+                    removePacketListener(d.getReplyClass(), this);
                 }
             }
         };
-        addPacketListener(clazz, replyListener);
+        addPacketListener(d.getReplyClass(), replyListener);
         nextId++;
 
         session.getAsyncRemote().sendText(d.toPacket(id).toJson());

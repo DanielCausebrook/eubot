@@ -40,6 +40,7 @@ public class DataTypeAdapter {
         instance.registerType(SendReply.class, "send-reply");
         instance.registerType(WhoReply.class, "who-reply");
         instance.registerType(LoginReply.class, "login-reply");
+        instance.registerType(LogoutReply.class, "logout-reply");
         instance.registerType(PMInitiateReply.class, "pm-initiate-reply");
     }
 

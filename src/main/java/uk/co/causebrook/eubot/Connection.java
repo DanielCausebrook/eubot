@@ -4,9 +4,10 @@ import uk.co.causebrook.eubot.events.ConnectionListener;
 import uk.co.causebrook.eubot.events.PacketEvent;
 import uk.co.causebrook.eubot.events.PacketListener;
 import uk.co.causebrook.eubot.packets.Data;
+import uk.co.causebrook.eubot.packets.ReplyableData;
 
 import java.io.IOException;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
 public interface Connection {
     /**
@@ -16,15 +17,12 @@ public interface Connection {
     void send(Data p);
 
     /**
-     * Sends a packet of data and listens for replies to the packet
+     * Sends a packet of data and listens for replies to the packet.
      * @param p The data to send over the connection.
-     * @param clazz The type of the replyWithReplyListener to listen for.
-     * @param listener The listener to add that will trigger on replyWithReplyListener.
      * @param <T> The type of the replyWithReplyListener to listen for.
+     * @return A future object that will be updated with the reply to this packet.
      */
-    <T extends Data> void sendWithReplyListener(Data p, Class<T> clazz, PacketListener<T> listener);
-
-    <T extends Data> Future<PacketEvent<T>> sendWithReplyListener(Data p, Class<T> clazz);
+    <T extends Data> CompletableFuture<PacketEvent<T>> send(ReplyableData<T> p);
 
     /**
      * Adds a listener to be triggered when a packet of the specified type is received.

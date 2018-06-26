@@ -1,11 +1,12 @@
 package uk.co.causebrook.eubot.packets.commands;
 
-import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.Packet;
+import uk.co.causebrook.eubot.packets.ReplyableData;
 import uk.co.causebrook.eubot.packets.events.SendEvent;
+import uk.co.causebrook.eubot.packets.replies.SendReply;
 
 @SuppressWarnings("unused")
-public class Send extends Data {
+public class Send extends ReplyableData<SendReply> {
     private final String content;
     private String parent;
 
@@ -23,4 +24,9 @@ public class Send extends Data {
 
     public String getContent() { return content; }
     public String getParent()  { return parent;  }
+
+    @Override
+    public Class<SendReply> getReplyClass() {
+        return SendReply.class;
+    }
 }

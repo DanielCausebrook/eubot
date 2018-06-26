@@ -8,9 +8,6 @@ import uk.co.causebrook.eubot.packets.commands.Who;
 import uk.co.causebrook.eubot.packets.events.*;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.NickReply;
-import uk.co.causebrook.eubot.packets.replies.PMInitiateReply;
-import uk.co.causebrook.eubot.packets.replies.SendReply;
-import uk.co.causebrook.eubot.packets.replies.WhoReply;
 
 import java.io.IOException;
 import java.net.URI;
@@ -54,29 +51,30 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
         return new EuphoriaSession(new URI("wss://euphoria.io/room/pm:" + pmid + "/ws"), cookie);
     }
 
-    public Future<Session> initPM(String userId) {
+    public CompletableFuture<Session> initPM(String userId) {
         CompletableFuture<Session> pmRoom = new CompletableFuture<>();
         if(hasCookie()) {
-            sendWithReplyListener(new PMInitiate(userId), PMInitiateReply.class, e -> {
-                try {
-                    pmRoom.complete(EuphoriaSession.getPM(e.getData().getPmId(), getCookie()));
-                } catch(URISyntaxException err) {
-                    pmRoom.completeExceptionally(err);
-                }
-            });
+            send(new PMInitiate(userId))
+                    .thenAccept(e -> {
+                        try {
+                            pmRoom.complete(EuphoriaSession.getPM(e.getData().getPmId(), getCookie()));
+                        } catch(URISyntaxException err) {
+                            pmRoom.completeExceptionally(err);
+                        }
+                    });
         } else pmRoom.completeExceptionally(new IllegalStateException("This session is not using a cookie and cannot initialise PMs."));
         return pmRoom;
     }
 
-    public Future<Session> initPM(SessionView user) {
+    public CompletableFuture<Session> initPM(SessionView user) {
         return initPM(user.getId());
     }
 
     @Override
-    public Future<List<SessionView>> getUsersByName(String name, String regexIgnored) {
+    public CompletableFuture<List<SessionView>> getUsersByName(String name, String regexIgnored) {
         String modifiedName = name.replaceAll(regexIgnored, "");
         CompletableFuture<List<SessionView>> futMatchingUsers = new CompletableFuture<>();
-        sendWithReplyListener(new Who(), WhoReply.class, e2 -> {
+        send(new Who()).thenAccept(e2 -> {
             List<SessionView> sessions = e2.getData().getListing();
             futMatchingUsers.complete(
                     sessions.stream()
@@ -151,13 +149,13 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     @Override
     public void sendMessageWithReplyListener(Send message, MessageListener replyListener) {
-        sendWithReplyListener(message, SendReply.class, e -> addMessageListener(e2 -> {
+        send(message).thenAccept(e -> addMessageListener(e2 -> {
             if(e.getData().getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
         }));
     }
     @Override
     public void sendMessageWithReplyListener(Send message, MessageListener replyListener, Duration timeout) {
-        sendWithReplyListener(message, SendReply.class, e -> {
+        send(message).thenAccept(e -> {
             MessageListener l = e2 -> {
                 if(e.getData().getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
             };
@@ -192,7 +190,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     public void setNick(String nick) {
         nextNick = nick;
-        send(new Nick(nick));
+        if(isOpen()) send(new Nick(nick));
     }
 
 }

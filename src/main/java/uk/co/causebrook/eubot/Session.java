@@ -8,7 +8,7 @@ import uk.co.causebrook.eubot.packets.fields.SessionView;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
 public interface Session extends Connection {
     void setNick(String nick);
@@ -27,8 +27,8 @@ public interface Session extends Connection {
     void addMessageListener(MessageListener listener);
     void removeMessageListener(MessageListener listener);
 
-    Future<Session> initPM(String userId);
-    Future<Session> initPM(SessionView user);
+    CompletableFuture<Session> initPM(String userId);
+    CompletableFuture<Session> initPM(SessionView user);
 
-    Future<List<SessionView>> getUsersByName(String name, String regexIgnored);
+    CompletableFuture<List<SessionView>> getUsersByName(String name, String regexIgnored);
 }
