@@ -14,6 +14,7 @@ public interface Session extends Connection {
     void setNick(String nick);
     String getNick();
 
+    //TODO Check why I need sendMessage().
     void sendMessage(Send message);
     void sendMessageWithReplyListener(Send message, MessageListener replyListener);
     void sendMessageWithReplyListener(Send message, MessageListener replyListener, Duration timeout);

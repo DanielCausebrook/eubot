@@ -29,8 +29,8 @@ public class TestBot {
                         else logger.severe("Unable to login to account.");
                     })
         );
-
-        Behaviour pmBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
+        Behaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
+        Behaviour pmBot = new StandardBehaviour("PmBot", "Hi, I'm @PmBot. I'm a test of TauNeutrin0's new bot PM abilities. Type !pm @User to initiate a private message with them.");
         pmBot.addMessageListener(new RegexListener("^!pm @([\\S]+)$",
                 (e, m) -> new Thread(
                         () -> e.reply(initPMConnection(e.getData().getSender(), m.group(1), e.getSession(), accountRoom))
@@ -38,11 +38,14 @@ public class TestBot {
         ));
 
         CookieConfig cookie = new CookieConfig("cookie.txt");
-        Session room = EuphoriaSession.getRoom("xkcd", cookie);
-        pmBot.add(room);
+        Session tauRoom = EuphoriaSession.getRoom("test", cookie);
+        Session pmRoom = EuphoriaSession.getRoom("test", cookie);
+        tauBot.add(tauRoom);
+        pmBot.add(pmRoom);
         pmBot.add(accountRoom);
         accountRoom.open();
-        room.open();
+        tauRoom.open();
+        pmRoom.open();
 
         Thread.sleep(Duration.ofHours(2).toMillis());
     }

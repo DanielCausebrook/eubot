@@ -50,4 +50,8 @@ public class Packet<T extends Data> {
     public String getType() {
         return type;
     }
+
+    public String getError() {
+        return error;
+    }
 }

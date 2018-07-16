@@ -62,4 +62,6 @@ public interface Connection {
      * @return true if the websocket connection is open.
      */
     boolean isOpen();
+
+    CookieConfig getCookieConfig();
 }

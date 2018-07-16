@@ -12,6 +12,7 @@ import javax.websocket.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
  */
 public class WebsocketConnection extends Endpoint implements Connection {
     private long nextId = 0;
+    private Map<String, CompletableFuture> idListeners = new HashMap<>(); // Currently for error handling only.
     private final URI server;
     private final CookieConfig cookie;
     private javax.websocket.Session session;
@@ -83,9 +85,8 @@ public class WebsocketConnection extends Endpoint implements Connection {
     @SuppressWarnings("unchecked")
     private <T extends Data> void handle(Packet<T> p) {
         if(p.getData() == null) {
-            logger.log(Level.WARNING, "Could not handle " + p.getType() + " packet with null data.");
-            //TODO Handle error packets.
-            // Remember to update Behaviour.
+            if(idListeners.containsKey(p.getId()))
+                idListeners.get(p.getId()).completeExceptionally(new PacketException(p.getError()));
             return;
         }
         // Listeners for this packet type.
@@ -150,11 +151,14 @@ public class WebsocketConnection extends Endpoint implements Connection {
         CompletableFuture<PacketEvent<T>> event = new CompletableFuture<>();
 
         final String id = Long.toHexString(nextId);
+        idListeners.put(id, event);
+        //TODO Use idListeners to handle all packet responses, not just packet error responses.
         final PacketListener<T> replyListener = new PacketListener<T>() {
             @Override
             public void onPacket(PacketEvent<T> e) {
                 if(e.getPacket().getId().equals(id)) {
                     event.complete(e);
+                    idListeners.remove(id);
                     removePacketListener(d.getReplyClass(), this);
                 }
             }
@@ -170,7 +174,8 @@ public class WebsocketConnection extends Endpoint implements Connection {
         return cookie != null;
     }
 
-    public CookieConfig getCookie() {
+    @Override
+    public CookieConfig getCookieConfig() {
         return cookie;
     }
 
