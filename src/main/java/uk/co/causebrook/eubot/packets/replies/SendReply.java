@@ -1,13 +1,10 @@
 package uk.co.causebrook.eubot.packets.replies;
 
-import uk.co.causebrook.eubot.packets.Data;
-import uk.co.causebrook.eubot.packets.Packet;
-import uk.co.causebrook.eubot.packets.commands.Send;
-import uk.co.causebrook.eubot.packets.fields.SessionView;
+import uk.co.causebrook.eubot.packets.events.SendEvent;
 
 @SuppressWarnings("unused")
-public class SendReply extends Data {
-    private String      id;
+public class SendReply extends SendEvent {
+/*    private String      id;
     private String      parent;
     private String      previous_edit_id;
     private int         time;
@@ -31,5 +28,5 @@ public class SendReply extends Data {
     public String      getEncryptionKeyId() { return encryption_key_id; }
     public int         getEdited()          { return edited;            }
     public int         getDeleted()         { return deleted;           }
-    public boolean     getTruncated()       { return truncated;         }
+    public boolean     getTruncated()       { return truncated;         }*/
 }
