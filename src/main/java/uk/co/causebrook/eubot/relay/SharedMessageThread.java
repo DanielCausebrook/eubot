@@ -14,23 +14,22 @@ import java.util.regex.Pattern;
 
 public class SharedMessageThread {
     private SharedMessage root;
-    private Map<Message, SharedMessage> sharedMessages = new HashMap<>();
+    private Map<RelayMessage, SharedMessage> sharedMessages = new HashMap<>();
     private List<SharedMessageListener> mListeners = new CopyOnWriteArrayList<>();
     private boolean running = false;
     private Pattern filter;
 
-    public SharedMessageThread(List<MessageThread> threads) {
-        List<Message> rootList = new ArrayList<>();
+    public SharedMessageThread(List<RelayMessageThread> threads) {
+        List<RelayMessage> rootList = new ArrayList<>();
         root = new SharedMessage(rootList, null, this);
-        for(MessageThread t : threads) {
+        for(RelayMessageThread t : threads) {
             t.addMessageListener((m) -> {
                 // Only clone messages that are inside the thread and pass the filter.
                 if(running && sharedMessages.containsKey(m.getParent()) &&
                         (filter == null || filter.matcher(m.getData().getContent()).find())) {
-                    SharedMessage p = sharedMessages.get(m.getParent());
-                    SharedMessage child = p.shareChild(m);
-
-                    mListeners.forEach((l) -> l.onMessage(child));
+                    sharedMessages.get(m.getParent())
+                            .shareChild(m)
+                            .thenAccept((child) -> mListeners.forEach((l) -> l.onMessage(child)));
                 }
             });
             // Put thread root message in map.
@@ -39,17 +38,17 @@ public class SharedMessageThread {
         }
     }
 
-    void registerSharedMessage(Message message, SharedMessage sharedMessage) {
+    void registerSharedMessage(RelayMessage message, SharedMessage sharedMessage) {
         sharedMessages.put(message, sharedMessage);
     }
 
     public static SharedMessageThread openPoolWithMessage(List<Session> sessions, String message) throws InterruptedException {
-        List<CompletableFuture<MessageThread>> futThreads = new ArrayList<>();
+        List<CompletableFuture<RelayMessageThread>> futThreads = new ArrayList<>();
         for(Session s : sessions) {
-            futThreads.add(s.send(new Send(message)).thenApply((e) -> new MessageThread(s, e.getData())));
+            futThreads.add(s.send(new Send(message)).thenApply((e) -> new RelayMessageThread(s, e.getData())));
         }
-        List<MessageThread> threads = new ArrayList<>();
-        for(CompletableFuture<MessageThread> fut : futThreads) {
+        List<RelayMessageThread> threads = new ArrayList<>();
+        for(CompletableFuture<RelayMessageThread> fut : futThreads) {
             try {
                 threads.add(fut.get());
             } catch (ExecutionException e) {

@@ -2,57 +2,54 @@ package uk.co.causebrook.eubot.relay;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class SharedMessage {
-    private List<Message> messages;
+    private List<RelayMessage> messages;
     private SharedMessageThread thread;
     private SharedMessage parent;
 
-    public SharedMessage(List<Message> messages, SharedMessage parent, SharedMessageThread thread) {
+    public SharedMessage(List<RelayMessage> messages, SharedMessage parent, SharedMessageThread thread) {
         this.messages = messages;
         this.parent = parent;
         this.thread = thread;
     }
 
     public SharedMessage reply(String message) {
-        List<Message> replies = new ArrayList<>();
+        List<RelayMessage> replies = new ArrayList<>();
         SharedMessage sharedMessage = new SharedMessage(replies, this, thread);
-        for(Message m : messages) m.reply(message).thenAccept((clone) -> {
+        for(RelayMessage m : messages) m.reply(message).thenAccept((clone) -> {
             replies.add(clone);
             thread.registerSharedMessage(clone, sharedMessage);
         });
         return sharedMessage;
     }
 
-    public SharedMessage replyAs(String message, String nick) {
-        List<Message> replies = new ArrayList<>();
-        SharedMessage sharedMessage = new SharedMessage(replies, this, thread);
-        for(Message m : messages) m.replyAs(message, nick).thenAccept((clone) -> {
-            replies.add(clone);
-            thread.registerSharedMessage(clone, sharedMessage);
-        });
-        return sharedMessage;
+    public CompletableFuture<SharedMessage> replyAs(String message, String nick) {
+        return messages.stream().collect(
+                () -> CompletableFuture.completedFuture(new ArrayList<RelayMessage>()),
+                (fut, m) -> fut.thenCombine(m.replyAs(message, nick), List::add),
+                (futA, futB) -> futA.thenCombine(futB, List::addAll)
+        ).thenApply((l) -> new SharedMessage(l, this, thread));
     }
 
-    SharedMessage shareChild(Message child) {
-        if(!messages.contains(child.getParent())) throw new IllegalArgumentException("Message is not a child.");
-        List<Message> childrenList = new ArrayList<>();
-        SharedMessage sharedMessage = new SharedMessage(childrenList, this, thread);
-        childrenList.add(child);
-        thread.registerSharedMessage(child, sharedMessage);
-        for(Message m : messages) {
-            if(!m.equals(child.getParent())) {
-                m.replyAs(child.getData().getContent(), child.getData().getSender().getName())
-                        .thenAccept((clone) -> {
-                            childrenList.add(clone);
-                            thread.registerSharedMessage(clone, sharedMessage);
-                        });
-            }
-        }
-        return sharedMessage;
-    }
-
-    public List<Message> getMessages() {
-        return new ArrayList<>(messages);
+    CompletableFuture<SharedMessage> shareChild(RelayMessage child) {
+        if(!messages.contains(child.getParent())) throw new IllegalArgumentException("RelayMessage is not a child.");
+        return messages.stream()
+                .filter((m) -> !m.equals(child.getParent()))
+                .collect(
+                        () -> {
+                            ArrayList<RelayMessage> l = new ArrayList<>();
+                            l.add(child);
+                            return CompletableFuture.completedFuture(l);
+                        },
+                        (fut, m) -> fut.thenCombine(m.replyAs(child.getData().getContent(), child.getData().getSender().getName()), List::add),
+                        (futA, futB) -> futA.thenCombine(futB, List::addAll)
+                )
+                .thenApply((l) -> {
+                    SharedMessage sM = new SharedMessage(l, this, thread);
+                    for(RelayMessage m : messages) thread.registerSharedMessage(m, sM);
+                    return sM;
+                });
     }
 }

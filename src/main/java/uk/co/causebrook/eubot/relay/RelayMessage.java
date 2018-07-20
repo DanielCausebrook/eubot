@@ -4,26 +4,26 @@ import uk.co.causebrook.eubot.packets.events.SendEvent;
 
 import java.util.concurrent.CompletableFuture;
 
-public class Message {
-    private MessageThread thread;
+public class RelayMessage {
+    private RelayMessageThread thread;
     private SendEvent data;
-    private Message parent;
+    private RelayMessage parent;
 
-    public Message(MessageThread thread, Message parent, SendEvent data) {
+    public RelayMessage(RelayMessageThread thread, RelayMessage parent, SendEvent data) {
         this.thread = thread;
         this.parent = parent;
         this.data = data;
     }
 
-    public CompletableFuture<Message> reply(String message) {
+    public CompletableFuture<RelayMessage> reply(String message) {
         return thread.sendMessage(message, this);
     }
 
-    public CompletableFuture<Message> replyAs(String message, String nick) {
+    public CompletableFuture<RelayMessage> replyAs(String message, String nick) {
         return thread.sendMessageAs(message, this, nick);
     }
 
-    public Message getParent() {
+    public RelayMessage getParent() {
         return parent;
     }
 
