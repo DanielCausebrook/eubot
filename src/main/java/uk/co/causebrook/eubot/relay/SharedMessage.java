@@ -3,6 +3,10 @@ package uk.co.causebrook.eubot.relay;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SharedMessage {
     private List<RelayMessage> messages;
@@ -27,10 +31,10 @@ public class SharedMessage {
 
     public CompletableFuture<SharedMessage> replyAs(String message, String nick) {
         return messages.stream().collect(
-                () -> CompletableFuture.completedFuture(new ArrayList<RelayMessage>()),
-                (fut, m) -> fut.thenCombine(m.replyAs(message, nick), List::add),
-                (futA, futB) -> futA.thenCombine(futB, List::addAll)
-        ).thenApply((l) -> new SharedMessage(l, this, thread));
+                () -> new AtomicReference<CompletableFuture<List<RelayMessage>>>(CompletableFuture.completedFuture(new ArrayList<>())),
+                (fut, m) -> fut.getAndUpdate((f) -> f.thenCombine(m.replyAs(message, nick), (l, ch) -> {l.add(ch); return l;})),
+                (futA, futB) -> futA.getAndUpdate((f) -> f.thenCombine(futB.get(), (l1, l2) -> {l1.addAll(l2); return l1;}))
+        ).get().thenApply((l) -> new SharedMessage(l, this, thread));
     }
 
     CompletableFuture<SharedMessage> shareChild(RelayMessage child) {
@@ -38,17 +42,14 @@ public class SharedMessage {
         return messages.stream()
                 .filter((m) -> !m.equals(child.getParent()))
                 .collect(
-                        () -> {
-                            ArrayList<RelayMessage> l = new ArrayList<>();
-                            l.add(child);
-                            return CompletableFuture.completedFuture(l);
-                        },
-                        (fut, m) -> fut.thenCombine(m.replyAs(child.getData().getContent(), child.getData().getSender().getName()), List::add),
-                        (futA, futB) -> futA.thenCombine(futB, List::addAll)
+                        () -> new AtomicReference<CompletableFuture<List<RelayMessage>>>(CompletableFuture.completedFuture(new ArrayList<>())),
+                        (fut, m) -> fut.getAndUpdate((f) -> f.thenCombine(m.replyAs(child.getData().getContent(), child.getData().getSender().getName()), (l,ch) -> {l.add(ch); return l;})),
+                        (futA, futB) -> futA.getAndUpdate((f) -> f.thenCombine(futB.get(), (l1,l2) -> {l1.addAll(l2); return l1;}))
                 )
-                .thenApply((l) -> {
+                .get().thenApply((l) -> {
+                    l.add(child);
                     SharedMessage sM = new SharedMessage(l, this, thread);
-                    for(RelayMessage m : messages) thread.registerSharedMessage(m, sM);
+                    for(RelayMessage m : l) thread.registerSharedMessage(m, sM);
                     return sM;
                 });
     }
