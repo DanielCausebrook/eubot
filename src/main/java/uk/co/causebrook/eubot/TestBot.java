@@ -31,10 +31,16 @@ public class TestBot {
                     else logger.severe("Unable to login to account.");
                 })
         );
+
+
+
         Behaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
         tauBot.addMessageListener(new RegexListener("^chirp!?$", (((e, m) -> {
             if(m.matches() && e.getSenderNick().equals("bbb")) e.reply("chirp!");
         }))));
+
+
+
         Behaviour pmBot = new StandardBehaviour("PmBot", "Hi, I'm @PmBot. I'm a test of TauNeutrin0's new bot PM abilities. Type !pm @User to initiate a private message with them.");
         Behaviour cGBot = new CardGameBot(accountRoom);
         pmBot.addMessageListener(new RegexListener("^!pm((?: @[\\S]+)+)$",
@@ -60,20 +66,21 @@ public class TestBot {
                             pms.add(pm);
                         }
                         SharedMessageThread t = SharedMessageThread.openPoolWithMessage(pms, "New PM with: @" + e.getSenderNick().replaceAll("\\s", "") + " " + usersStr + ". Any replies to this thread will be sent privately.");
-                        // TODO add proper closing (maybe handling of shared messages)
 
-//                        t.addMessageListener(sM -> {
-//                            sM.reply("Closing PM...");
-//                            t.getRoot().reply("PM will now be closed. New replies will not be shared.");
-//                            t.stop();
-//                            for(Session pm : pms) {
-//                                try {
-//                                    pm.close();
-//                                } catch (IOException e1) {
-//                                    e1.printStackTrace();
-//                                }
-//                            }
-//                        });
+                        t.addMessageListener(sM -> {
+                            if(sM.getMessages().get(0).getData().getContent().equals("!close")){
+                                sM.reply("Closing PM...");
+                                t.getRoot().reply("PM will now be closed. New replies will not be shared.");
+                                t.stop();
+                                for(Session pm : pms) {
+                                    try {
+                                        pm.close();
+                                    } catch (IOException e1) {
+                                        e1.printStackTrace();
+                                    }
+                                }
+                            }
+                        });
                         t.start();
                         e.reply("Opened PM.");
                     } catch(InterruptedException | ExecutionException | IOException e1) {

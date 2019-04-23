@@ -3,11 +3,12 @@ package uk.co.causebrook.eubot.packets.replies;
 import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.Packet;
 import uk.co.causebrook.eubot.packets.commands.Send;
+import uk.co.causebrook.eubot.packets.events.SendEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 
 @SuppressWarnings("unused")
-public class GetMessageReply extends Data {
-    private String      id;
+public class GetMessageReply extends SendEvent {
+/*    private String      id;
     private String      parent;
     private String      previous_edit_id;
     private int         time;
@@ -40,5 +41,5 @@ public class GetMessageReply extends Data {
 
     public int         getDeleted()         { return deleted;           }
 
-    public boolean     getTruncated()       { return truncated;         }
+    public boolean     getTruncated()       { return truncated;         }*/
 }

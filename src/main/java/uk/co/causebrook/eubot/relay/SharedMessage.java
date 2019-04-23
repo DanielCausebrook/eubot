@@ -1,6 +1,7 @@
 package uk.co.causebrook.eubot.relay;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,6 +15,10 @@ public class SharedMessage {
         this.messages = messages;
         this.parent = parent;
         this.thread = thread;
+    }
+
+    public List<RelayMessage> getMessages() {
+        return Collections.unmodifiableList(messages);
     }
 
     public SharedMessage reply(String message) {

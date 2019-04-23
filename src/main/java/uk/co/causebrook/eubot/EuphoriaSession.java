@@ -52,6 +52,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
         return new EuphoriaSession(new URI("wss://euphoria.io/room/pm:" + pmid + "/ws"), cookie);
     }
 
+    @Override
     public CompletableFuture<Session> initPM(String userId) {
         CompletableFuture<Session> pmRoom = new CompletableFuture<>();
         if(hasCookie()) {
@@ -67,6 +68,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
         return pmRoom;
     }
 
+    @Override
     public CompletableFuture<Session> initPM(SessionView user) {
         return initPM(user.getId());
     }
@@ -94,7 +96,6 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
             currNick = session.getName();
             if(nick == null) nick = currNick;
         });
-        //addPacketListener(NickReply.class, p -> nick = p.getData().getTo());
         addPacketListener(DisconnectEvent.class, p -> {
             try {
                 if(p.getData().getReason().equals("authentication changed")) restart("authentication changed");
@@ -143,27 +144,27 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> send(String message) {
+    public CompletableFuture<MessageEvent<?>> send(String message) {
         var wrapper = new Object(){ long stamp = nickLock.readLock(); };
         return send(new Send(message)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> reply(String message, SendEvent parent) {
+    public CompletableFuture<MessageEvent<?>> reply(String message, SendEvent parent) {
         var wrapper = new Object(){ long stamp = nickLock.readLock(); };
         return send(new Send(message, parent)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> reply(String message, String parentId) {
+    public CompletableFuture<MessageEvent<?>> reply(String message, String parentId) {
         var wrapper = new Object(){ long stamp = nickLock.readLock(); };
         return send(new Send(message, parentId)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
-    private CompletableFuture<MessageEvent<SendReply>> sendAs(Send message, String tempNick) {
+    private CompletableFuture<MessageEvent<?>> sendAs(Send message, String tempNick) {
         var wrapper = new Object(){ long stamp = nickLock.writeLock(); };
         return send(new Nick(tempNick))
                 .thenCompose(e -> send(message))
@@ -178,17 +179,17 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> sendAs(String message, String nick) {
+    public CompletableFuture<MessageEvent<?>> sendAs(String message, String nick) {
         return sendAs(new Send(message), nick);
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> replyAs(String message, String nick, SendEvent parent) {
+    public CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, SendEvent parent) {
         return sendAs(new Send(message, parent), nick);
     }
 
     @Override
-    public CompletableFuture<MessageEvent<SendReply>> replyAs(String message, String nick, String parentId) {
+    public CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, String parentId) {
         return sendAs(new Send(message, parentId), nick);
     }
 
