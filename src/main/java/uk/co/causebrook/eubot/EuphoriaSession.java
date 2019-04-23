@@ -1,6 +1,7 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.*;
+import uk.co.causebrook.eubot.packets.Packet;
 import uk.co.causebrook.eubot.packets.commands.*;
 import uk.co.causebrook.eubot.packets.events.*;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
@@ -24,8 +25,8 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     private final List<MessageListener> mListeners = new CopyOnWriteArrayList<>();
     private ScheduledExecutorService listenerTimeouts = Executors.newScheduledThreadPool(1);
     private SessionView session;
-    private String nick;
     private String currNick;
+    private CompletableFuture<PacketEvent<NickReply>> nickInitListener;
     private StampedLock nickLock = new StampedLock();
 
     private EuphoriaSession(URI uri) {
@@ -90,12 +91,15 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     private void initStandardListeners(String room) {
         addPacketListener(PingEvent.class, p -> p.getData().reply(this));
-        addPacketListener(SnapshotEvent.class, e -> setNick(nick));
-        addPacketListener(HelloEvent.class, p -> {
-            session = p.getPacket().getData().getSession();
-            currNick = session.getName();
-            if(nick == null) nick = currNick;
+        addPacketListener(SnapshotEvent.class, e -> {
+            if(currNick == null) currNick = session.getName();
+            else setNick(currNick).whenComplete((nE, nEx) -> {
+                if(nEx != null) nickInitListener.completeExceptionally(nEx);
+                else nickInitListener.complete(nE);
+            });
         });
+        addPacketListener(HelloEvent.class, p -> session = p.getPacket().getData().getSession());
+        addPacketListener(NickReply.class, p -> currNick = p.getData().getTo());
         addPacketListener(DisconnectEvent.class, p -> {
             try {
                 if(p.getData().getReason().equals("authentication changed")) restart("authentication changed");
@@ -139,10 +143,6 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
         mListeners.remove(listener);
     }
 
-    public String getNick() {
-        return nick;
-    }
-
     @Override
     public CompletableFuture<MessageEvent<?>> send(String message) {
         var wrapper = new Object(){ long stamp = nickLock.readLock(); };
@@ -165,12 +165,12 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     private CompletableFuture<MessageEvent<?>> sendAs(Send message, String tempNick) {
-        var wrapper = new Object(){ long stamp = nickLock.writeLock(); };
+        var wrapper = new Object(){ long stamp = nickLock.writeLock(); String oldNick = currNick; };
         return send(new Nick(tempNick))
                 .thenCompose(e -> send(message))
-                .whenComplete((e, ex) -> send(new Nick(nick))
+                .whenComplete((e, ex) -> send(new Nick(wrapper.oldNick))
                         .whenComplete((nE, nEx) -> {
-                            if(nEx != null) logger.log(Level.WARNING, "sendAs call was unable to reset nick.", nEx);
+                            if(nEx != null) logger.log(Level.WARNING, "sendAs call was unable to reset the nick.", nEx);
                             nickLock.unlockWrite(wrapper.stamp);
                         })
                 )
@@ -213,10 +213,22 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
         );
     }
 
-    public CompletionStage<Void> setNick(String nick) {
-        this.nick = nick;
-        if(isOpen()) return send(new Nick(nick)).thenAccept(e -> {});
-        else return CompletableFuture.failedStage(new IllegalStateException("The session is not open."));
+    @Override
+    public String getNick() {
+        return currNick;
+    }
+
+    @Override
+    public CompletableFuture<PacketEvent<NickReply>> setNick(String nick) {
+        if(isOpen()) {
+            var wrapper = new Object() { long stamp = nickLock.writeLock(); };
+            return send(new Nick(nick))
+                    .whenComplete((e, ex)-> nickLock.unlockWrite(wrapper.stamp));
+
+        } else {
+            this.currNick = nick;
+            return nickInitListener = new CompletableFuture<>();
+        }
     }
 
 }

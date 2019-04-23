@@ -80,5 +80,6 @@ public interface Connection {
      */
     boolean isOpen();
 
+
     CookieConfig getCookieConfig();
 }

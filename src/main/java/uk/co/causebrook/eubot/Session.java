@@ -9,6 +9,7 @@ import uk.co.causebrook.eubot.packets.commands.Send;
 import uk.co.causebrook.eubot.packets.events.SendEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.GetMessageReply;
+import uk.co.causebrook.eubot.packets.replies.NickReply;
 import uk.co.causebrook.eubot.packets.replies.SendReply;
 
 import java.time.Duration;
@@ -29,13 +30,24 @@ import java.util.concurrent.CompletionStage;
  * </ul>
  */
 public interface Session extends Connection {
-    CompletionStage<Void> setNick(String nick);
+
+    /**
+     * Sets the nick of the current session. If the session is not yet open, the stage will complete when the session is opened and the nick is updated.
+     * @param nick The nick to change to.
+     * @return A CompletableFuture that will return the server's response. Will complete exceptionally if there is an error or timeout.
+     */
+    CompletableFuture<PacketEvent<NickReply>> setNick(String nick);
+
+    /**
+     * Gets the current nick.
+     * @return The nick currently in use.
+     */
     String getNick();
 
     /**
      * Send a message in the room at the root level.
      * @param message The message content.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> send(String message);
 
@@ -43,7 +55,7 @@ public interface Session extends Connection {
      * Send a message in the room as a reply to another message.
      * @param message The message content.
      * @param parent The parent message to reply to.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> reply(String message, SendEvent parent);
 
@@ -51,7 +63,7 @@ public interface Session extends Connection {
      * Send a message in the room as a reply to another message.
      * @param message The message content.
      * @param parentId The id of the parent message to reply to.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> reply(String message, String parentId);
 
@@ -60,7 +72,7 @@ public interface Session extends Connection {
      * This will block all other message sends until the nick is reverted.
      * @param message The message content.
      * @param nick The temporary nick to send the message as.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> sendAs(String message, String nick);
 
@@ -70,7 +82,7 @@ public interface Session extends Connection {
      * @param message The message content.
      * @param nick The temporary nick to send the message as.
      * @param parent The parent message to reply to.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, SendEvent parent);
 
@@ -80,14 +92,14 @@ public interface Session extends Connection {
      * @param message The message content.
      * @param nick The temporary nick to send the message as.
      * @param parentId The id of the parent message to reply to.
-     * @return A CompletionStage that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, String parentId);
 
     /**
      * Send a request to get the full message content of a message which has been truncated.
      * @param messageId The id of the message to request.
-     * @return A completionStage that will contain the server's response. WIll complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. WIll complete exceptionally if there is an error or timeout.
      */
     default CompletableFuture<MessageEvent<?>> requestFullMessage(String messageId) {
         return send(new GetMessage(messageId)).thenApply(e -> new MessageEvent<>(this, e.getPacket()));
@@ -96,7 +108,7 @@ public interface Session extends Connection {
     /**
      * Send a request to get the full message content of a message which has been truncated.
      * @param message The message to request a full version of.
-     * @return A completionStage that will contain the server's response. WIll complete exceptionally if there is an error or timeout.
+     * @return A CompletableFuture that will contain the server's response. WIll complete exceptionally if there is an error or timeout.
      */
     default CompletableFuture<MessageEvent<?>> requestFullMessage(SendEvent message) {
         return send(new GetMessage(message)).thenApply(e -> new MessageEvent<>(this, e.getPacket()));
