@@ -19,12 +19,8 @@ public class SendEvent extends Data {
     private int         deleted;
     private boolean     truncated;
 
-    public Packet createReply(String message) {
-        return new Send(message, id).toPacket();
-    }
-
-    public Packet createFullMessageRequest() {
-        return new GetMessage(id).toPacket();
+    public GetMessage createFullMessageRequest() {
+        return new GetMessage(id);
     }
 
     public String      getId()              { return id;                }

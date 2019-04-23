@@ -8,6 +8,7 @@ public class RelayMessage {
     private RelayMessageThread thread;
     private SendEvent data;
     private RelayMessage parent;
+    //TODO Add flag to prevent relaying, instead of regex filter in SharedMessageThread
 
     public RelayMessage(RelayMessageThread thread, RelayMessage parent, SendEvent data) {
         this.thread = thread;
@@ -16,11 +17,11 @@ public class RelayMessage {
     }
 
     public CompletableFuture<RelayMessage> reply(String message) {
-        return thread.sendMessage(message, this);
+        return thread.reply(message, this);
     }
 
     public CompletableFuture<RelayMessage> replyAs(String message, String nick) {
-        return thread.sendMessageAs(message, this, nick);
+        return thread.replyAs(message, nick, this);
     }
 
     public RelayMessage getParent() {

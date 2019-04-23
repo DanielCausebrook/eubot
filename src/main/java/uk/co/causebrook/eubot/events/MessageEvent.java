@@ -4,13 +4,15 @@ import uk.co.causebrook.eubot.Session;
 import uk.co.causebrook.eubot.packets.Packet;
 import uk.co.causebrook.eubot.packets.commands.Send;
 import uk.co.causebrook.eubot.packets.events.SendEvent;
+import uk.co.causebrook.eubot.packets.replies.SendReply;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
-public class MessageEvent extends PacketEvent<SendEvent> {
+public class MessageEvent<T extends SendEvent> extends PacketEvent<T> {
     private final Session session;
 
-    public MessageEvent(Session session, Packet<SendEvent> packet) {
+    public MessageEvent(Session session, Packet<T> packet) {
         super(session, packet);
         this.session = session;
     }
@@ -36,24 +38,15 @@ public class MessageEvent extends PacketEvent<SendEvent> {
     }
 
     public void addReplyListener(MessageListener replyListener) {
-        session.addMessageReplyListener(getData(),replyListener);
+        session.addMessageReplyListener(getData(), replyListener);
     }
 
     public void addReplyListener(MessageListener replyListener, Duration timeout) {
         session.addMessageReplyListener(getData(),replyListener, timeout);
     }
 
-    public void reply(String text) {
-        session.sendMessage(new Send(text, getData().getId()));
+    public CompletableFuture<MessageEvent<?>> reply(String text) {
+        return session.send(new Send(text, getData().getId()))
+                .thenApply(e-> new MessageEvent<>(session, e.getPacket()));
     }
-
-    public void replyWithReplyListener(String text, MessageListener replyListener) {
-        session.sendMessageWithReplyListener(new Send(text, getData().getId()), replyListener);
-    }
-
-
-    public void replyWithReplyListener(String text, MessageListener replyListener, Duration timeout) {
-        session.sendMessageWithReplyListener(new Send(text, getData().getId()), replyListener, timeout);
-    }
-
 }

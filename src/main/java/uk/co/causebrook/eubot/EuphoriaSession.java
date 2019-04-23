@@ -1,13 +1,11 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.*;
-import uk.co.causebrook.eubot.packets.commands.Nick;
-import uk.co.causebrook.eubot.packets.commands.PMInitiate;
-import uk.co.causebrook.eubot.packets.commands.Send;
-import uk.co.causebrook.eubot.packets.commands.Who;
+import uk.co.causebrook.eubot.packets.commands.*;
 import uk.co.causebrook.eubot.packets.events.*;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.NickReply;
+import uk.co.causebrook.eubot.packets.replies.SendReply;
 
 import java.io.IOException;
 import java.net.URI;
@@ -15,6 +13,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.StampedLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -23,9 +22,11 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     private static Logger logger = Logger.getLogger("connection-log");
     private final List<SessionListener> sListeners = new CopyOnWriteArrayList<>();
     private final List<MessageListener> mListeners = new CopyOnWriteArrayList<>();
+    private ScheduledExecutorService listenerTimeouts = Executors.newScheduledThreadPool(1);
     private SessionView session;
     private String nick;
-    private String nextNick;
+    private String currNick;
+    private StampedLock nickLock = new StampedLock();
 
     private EuphoriaSession(URI uri) {
         super(uri);
@@ -57,7 +58,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
             send(new PMInitiate(userId))
                     .thenAccept(e -> {
                         try {
-                            pmRoom.complete(EuphoriaSession.getPM(e.getData().getPmId(), getCookie()));
+                            pmRoom.complete(EuphoriaSession.getPM(e.getData().getPmId(), getCookieConfig()));
                         } catch(URISyntaxException err) {
                             pmRoom.completeExceptionally(err);
                         }
@@ -87,14 +88,13 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     private void initStandardListeners(String room) {
         addPacketListener(PingEvent.class, p -> p.getData().reply(this));
-        addPacketListener(SnapshotEvent.class, e -> {
-            if(nextNick != null) setNick(nextNick);
-        });
+        addPacketListener(SnapshotEvent.class, e -> setNick(nick));
         addPacketListener(HelloEvent.class, p -> {
             session = p.getPacket().getData().getSession();
-            nick = session.getName();
+            currNick = session.getName();
+            if(nick == null) nick = currNick;
         });
-        addPacketListener(NickReply.class, p -> nick = p.getData().getTo());
+        //addPacketListener(NickReply.class, p -> nick = p.getData().getTo());
         addPacketListener(DisconnectEvent.class, p -> {
             try {
                 if(p.getData().getReason().equals("authentication changed")) restart("authentication changed");
@@ -106,7 +106,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     private void initSessionListeners() {
         addPacketListener(SendEvent.class, p -> {
-            for(MessageListener mL : mListeners) mL.onPacket(new MessageEvent(this, p.getPacket()));
+            for(MessageListener mL : mListeners) mL.onPacket(new MessageEvent<>(this, p.getPacket()));
         });
         addPacketListener(SnapshotEvent.class, p -> {
             for(SessionListener rCL : sListeners) rCL.onJoin(p);
@@ -143,29 +143,53 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public void sendMessage(Send message) {
-        send(message);
+    public CompletableFuture<MessageEvent<SendReply>> send(String message) {
+        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
+        return send(new Send(message)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
+                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
     @Override
-    public void sendMessageWithReplyListener(Send message, MessageListener replyListener) {
-        send(message).thenAccept(e -> addMessageListener(e2 -> {
-            if(e.getData().getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
-        }));
+    public CompletableFuture<MessageEvent<SendReply>> reply(String message, SendEvent parent) {
+        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
+        return send(new Send(message, parent)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
+                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
+
     @Override
-    public void sendMessageWithReplyListener(Send message, MessageListener replyListener, Duration timeout) {
-        send(message).thenAccept(e -> {
-            MessageListener l = e2 -> {
-                if(e.getData().getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
-            };
-            addMessageListener(l);
-            Executors.newSingleThreadScheduledExecutor().schedule(
-                    () -> removeMessageListener(l),
-                    timeout.toMillis(),
-                    TimeUnit.MILLISECONDS
-            );
-        });
+    public CompletableFuture<MessageEvent<SendReply>> reply(String message, String parentId) {
+        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
+        return send(new Send(message, parentId)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
+                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+    }
+
+    private CompletableFuture<MessageEvent<SendReply>> sendAs(Send message, String tempNick) {
+        var wrapper = new Object(){ long stamp = nickLock.writeLock(); };
+        return send(new Nick(tempNick))
+                .thenCompose(e -> send(message))
+                .whenComplete((e, ex) -> send(new Nick(nick))
+                        .whenComplete((nE, nEx) -> {
+                            if(nEx != null) logger.log(Level.WARNING, "sendAs call was unable to reset nick.", nEx);
+                            nickLock.unlockWrite(wrapper.stamp);
+                        })
+                )
+                .whenComplete((e, ex) -> nickLock.unlockWrite(wrapper.stamp))
+                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+    }
+
+    @Override
+    public CompletableFuture<MessageEvent<SendReply>> sendAs(String message, String nick) {
+        return sendAs(new Send(message), nick);
+    }
+
+    @Override
+    public CompletableFuture<MessageEvent<SendReply>> replyAs(String message, String nick, SendEvent parent) {
+        return sendAs(new Send(message, parent), nick);
+    }
+
+    @Override
+    public CompletableFuture<MessageEvent<SendReply>> replyAs(String message, String nick, String parentId) {
+        return sendAs(new Send(message, parentId), nick);
     }
 
     @Override
@@ -181,16 +205,17 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
             if(message.getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
         };
         addMessageListener(l);
-        Executors.newSingleThreadScheduledExecutor().schedule(
+        listenerTimeouts.schedule(
                 () -> removeMessageListener(l),
                 timeout.toMillis(),
                 TimeUnit.MILLISECONDS
         );
     }
 
-    public void setNick(String nick) {
-        nextNick = nick;
-        if(isOpen()) send(new Nick(nick));
+    public CompletionStage<Void> setNick(String nick) {
+        this.nick = nick;
+        if(isOpen()) return send(new Nick(nick)).thenAccept(e -> {});
+        else return CompletableFuture.failedStage(new IllegalStateException("The session is not open."));
     }
 
 }

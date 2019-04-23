@@ -9,6 +9,18 @@ import uk.co.causebrook.eubot.packets.ReplyableData;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Represents a connection to a server using the Euphoria API.
+ *
+ * Provides utilities to:
+ * <ul>
+ *     <li>Send packets to the server and retrieve any response.</li>
+ *     <li>Listen for any incoming messages from the server.</li>
+ *     <li>Retrieve or provide a cookie used for the connection.</li>
+ *     <li>Monitor the connection's state.</li>
+ * </ul>
+ *
+ */
 public interface Connection {
     /**
      * Sends a packet of data to the server.
@@ -56,6 +68,11 @@ public interface Connection {
      * Initiates the connection to the server.
      */
     void open() throws IOException;
+
+    /**
+     * Closes the connection to the server.
+     */
+    void close() throws IOException;
 
     /**
      * Returns the current state of the websocket connection.

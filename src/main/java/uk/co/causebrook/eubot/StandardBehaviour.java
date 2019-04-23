@@ -1,5 +1,6 @@
 package uk.co.causebrook.eubot;
 
+import uk.co.causebrook.eubot.events.ConnectionListener;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 
@@ -12,18 +13,34 @@ public class StandardBehaviour extends Behaviour {
     public StandardBehaviour(String nick, String helpText) {
         super(nick);
         String quotedNick = Pattern.quote(nick.replace(" ", ""));
-        addMessageListener(new RegexListener("^!help @" + quotedNick + "$", (e, m) -> e.reply(helpText)));
+        addMessageListener(new RegexListener("^!help @" + quotedNick + "$", (e) -> e.reply(helpText)));
         HashMap<Connection, LocalDateTime> roomUptimes = new HashMap<>();
         final LocalDateTime uptime = LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS);
         addPacketListener(SnapshotEvent.class,
                 e -> roomUptimes.put(e.getRoomConnection(), LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS))
         );
-        addMessageListener(new RegexListener("^!uptime @" + quotedNick + "$", (e, m) -> {
+        addMessageListener(new RegexListener("^!uptime @" + quotedNick + "$", (e) -> {
             e.reply("/me has been up since " + uptime.toString());
             LocalDateTime roomUptime = roomUptimes.get(e.getRoomConnection());
             if(roomUptime != null) e.reply("/me has been online in this room since " + roomUptime.toString());
         }));
-        addMessageListener(new RegexListener("^!ping( @" + quotedNick + ")?$", (e, m) -> e.reply("Pong!")));
+        addMessageListener(new RegexListener("^!ping( @" + quotedNick + ")?$", (e) -> e.reply("Pong!")));
+        addConnectionListener(new ConnectionListener() {
+            @Override
+            public void onConnect(Connection c) {
+
+            }
+
+            @Override
+            public void onDisconnect(Connection c) {
+
+            }
+
+            @Override
+            public void onError(Connection c, Throwable err) {
+
+            }
+        });
     }
 
     // TODO Add room switching.

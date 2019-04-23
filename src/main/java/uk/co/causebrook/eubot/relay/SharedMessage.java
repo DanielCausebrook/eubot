@@ -3,10 +3,7 @@ package uk.co.causebrook.eubot.relay;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class SharedMessage {
     private List<RelayMessage> messages;

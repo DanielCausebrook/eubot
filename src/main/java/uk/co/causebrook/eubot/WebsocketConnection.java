@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  */
 public class WebsocketConnection extends Endpoint implements Connection {
     private long nextId = 0;
-    private Map<String, CompletableFuture> idListeners = new HashMap<>(); // Currently for error handling only.
+    private Map<String, CompletableFuture<?>> idListeners = new HashMap<>(); // Currently for error handling only.
     private final URI server;
     private final CookieConfig cookie;
     private javax.websocket.Session session;
@@ -62,7 +62,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
 //            try {
 //                open();
 //            } catch(IOException e) {
-//                onError(e);
+//                for(ConnectionListener l : cListeners) l.onError(this, e);
 //            }
 //        }
     }
@@ -134,6 +134,11 @@ public class WebsocketConnection extends Endpoint implements Connection {
         }
     }
 
+    @Override
+    public void close() throws IOException {
+        session.close();
+    }
+
     public void restart(String reason) throws IOException {
         session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART , reason));
         open(); //TODO Verify calling open() is permitted before websocket close.
@@ -153,10 +158,12 @@ public class WebsocketConnection extends Endpoint implements Connection {
         final String id = Long.toHexString(nextId);
         idListeners.put(id, event);
         //TODO Use idListeners to handle all packet responses, not just packet error responses.
-        final PacketListener<T> replyListener = new PacketListener<T>() {
+        //  Problem: type-safety with CompletableFuture<?>
+        //TODO Add timeouts so listeners waiting on a response complete exceptionally after a time.
+        final PacketListener<T> replyListener = new PacketListener<>() {
             @Override
             public void onPacket(PacketEvent<T> e) {
-                if(e.getPacket().getId().equals(id)) {
+                if (e.getPacket().getId().equals(id)) {
                     event.complete(e);
                     idListeners.remove(id);
                     removePacketListener(d.getReplyClass(), this);

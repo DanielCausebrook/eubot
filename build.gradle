@@ -8,7 +8,7 @@ mainClassName='uk.co.causebrook.eubot.TestBot'
 group 'uk.co.causebrook'
 version '1.0'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 12
 
 repositories {
     mavenCentral()

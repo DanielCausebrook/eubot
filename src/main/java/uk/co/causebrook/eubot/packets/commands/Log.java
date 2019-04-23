@@ -5,8 +5,12 @@ import uk.co.causebrook.eubot.packets.replies.LogReply;
 
 @SuppressWarnings("unused")
 public class Log extends ReplyableData<LogReply> {
-    private final int    n;
-    private final String before;
+    private int    n;
+    private String before;
+
+    public Log(int n) {
+        this.n = n;
+    }
 
     public Log(int n, String before) {
         this.n = n;

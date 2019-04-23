@@ -30,7 +30,7 @@ public class RegexListener implements MessageListener {
     }
     
     @Override
-    public void onPacket(MessageEvent e) {
+    public void onPacket(MessageEvent<?> e) {
         Matcher m = p.matcher(e.getContent());
         if(m.matches()) {
             if(h != null) h.onRegex(e, m);
@@ -40,6 +40,6 @@ public class RegexListener implements MessageListener {
     
     @FunctionalInterface
     public interface RegexHandler {
-        void onRegex(MessageEvent e, Matcher m);
+        void onRegex(MessageEvent<?> e, Matcher m);
     }
 }

@@ -15,9 +15,9 @@ public class Send extends ReplyableData<SendReply> {
         this.parent = parent;
     }
 
-    public Send(String message, Packet<SendEvent> parent) {
+    public Send(String message, SendEvent parent) {
         content = message;
-        this.parent = parent.getData().getId();
+        this.parent = parent.getId();
     }
 
     public Send(String message) { content = message; }
