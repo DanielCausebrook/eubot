@@ -3,7 +3,7 @@ plugins {
     id 'application'
 }
 
-mainClassName='uk.co.causebrook.eubot.TestBot'
+mainClassName='uk.co.causebrook.eubot.examples.TestBot'
 
 group 'uk.co.causebrook'
 version '1.0'

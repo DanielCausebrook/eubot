@@ -1,5 +1,7 @@
-package uk.co.causebrook.eubot;
+package uk.co.causebrook.eubot.examples;
 
+import uk.co.causebrook.eubot.Session;
+import uk.co.causebrook.eubot.StandardBehaviour;
 import uk.co.causebrook.eubot.events.PacketEvent;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.commands.Send;

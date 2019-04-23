@@ -1,5 +1,6 @@
-package uk.co.causebrook.eubot;
+package uk.co.causebrook.eubot.examples;
 
+import uk.co.causebrook.eubot.*;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.commands.Login;
 import uk.co.causebrook.eubot.packets.events.BounceEvent;
