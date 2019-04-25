@@ -3,10 +3,7 @@ package uk.co.causebrook.eubot.relay;
 import uk.co.causebrook.eubot.Session;
 import uk.co.causebrook.eubot.packets.commands.Send;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -14,24 +11,15 @@ import java.util.regex.Pattern;
 
 public class SharedMessageThread {
     private SharedMessage root;
+    private List<RelayMessageThread> threads;
     private Map<RelayMessage, SharedMessage> sharedMessages = new HashMap<>();
     private List<SharedMessageListener> mListeners = new CopyOnWriteArrayList<>();
-    private boolean running = false;
-    private Pattern filter;
 
     public SharedMessageThread(List<RelayMessageThread> threads) {
+        this.threads = threads;
         List<RelayMessage> rootList = new ArrayList<>();
         root = new SharedMessage(rootList, null, this);
         for(RelayMessageThread t : threads) {
-            t.addMessageListener((m) -> {
-                // Only clone messages that are inside the thread and pass the filter.
-                if(running && sharedMessages.containsKey(m.getParent()) &&
-                        (filter == null || filter.matcher(m.getData().getContent()).find())) {
-                    sharedMessages.get(m.getParent())
-                            .shareChild(m)
-                            .thenAccept((child) -> mListeners.forEach((l) -> l.onMessage(child)));
-                }
-            });
             // Put thread root message in map.
             sharedMessages.put(t.getRoot(), root);
             rootList.add(t.getRoot());
@@ -58,21 +46,8 @@ public class SharedMessageThread {
         return new SharedMessageThread(threads);
     }
 
-    public void start() {
-        running = true;
-    }
-
-    public void stop() {
-        running = false;
-    }
-
-    /**
-     * Sets a regular expression that shared messages have to match.
-     * If set, any messages not matching this pattern will not be shared.
-     * @param filter The pattern to filter incoming messages by.
-     */
-    public void setFilter(Pattern filter) {
-        this.filter = filter;
+    public List<RelayMessageThread> getThreads() {
+        return Collections.unmodifiableList(threads);
     }
 
     public SharedMessage getRoot() {
@@ -85,5 +60,12 @@ public class SharedMessageThread {
 
     public void removeMessageListener(SharedMessageListener l) {
         mListeners.remove(l);
+    }
+
+    public void shareMessage(RelayMessage message) {
+        if(!sharedMessages.containsKey(message.getParent())) throw new IllegalArgumentException("The provided RelayMessage does not exist in this SharedThread.");
+        sharedMessages.get(message.getParent())
+                .shareChild(message)
+                .thenAccept((child) -> mListeners.forEach((l) -> l.onMessage(child)));
     }
 }

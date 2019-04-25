@@ -8,7 +8,6 @@ public class RelayMessage {
     private RelayMessageThread thread;
     private SendEvent data;
     private RelayMessage parent;
-    //TODO Add flag to prevent relaying, instead of regex filter in SharedMessageThread
 
     public RelayMessage(RelayMessageThread thread, RelayMessage parent, SendEvent data) {
         this.thread = thread;

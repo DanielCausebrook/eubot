@@ -342,8 +342,9 @@ public class CardGameBot extends StandardBehaviour {
                 pmThreads.add(new RelayMessageThread(root, rootMsg));
 
                 pool = new SharedMessageThread(pmThreads);
-                pool.setFilter(Pattern.compile("^[^!]"));
-                pool.start();
+                pmThreads.forEach(thread -> thread.addMessageListener(m -> {
+                    if(!m.getData().getContent().matches("^!")) pool.shareMessage(m);
+                }));
             } catch(InterruptedException | ExecutionException | IOException e) {
                 e.printStackTrace();
             }
