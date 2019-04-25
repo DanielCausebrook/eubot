@@ -3,17 +3,21 @@ package uk.co.causebrook.eubot.examples;
 import uk.co.causebrook.eubot.*;
 import uk.co.causebrook.eubot.events.*;
 import uk.co.causebrook.eubot.packets.commands.Login;
+import uk.co.causebrook.eubot.packets.commands.Nick;
 import uk.co.causebrook.eubot.packets.events.BounceEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.relay.SharedMessageThread;
 
+import javax.websocket.CloseReason;
 import java.io.IOException;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @SuppressWarnings("SpellCheckingInspection")
@@ -37,7 +41,8 @@ public class TestBot {
         String room = "test";
         CookieConfig cookie = new CookieConfig("cookie.txt");
 
-        Behaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
+        StandardBehaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
+        tauBot.enableLogging(logger);
         Session tauRoom = EuphoriaSession.getRoom(room, cookie);
         tauBot.add(tauRoom);
 
@@ -45,7 +50,8 @@ public class TestBot {
         Session pmRoom = EuphoriaSession.getRoom(room, cookie);
         pmBot.add(pmRoom);
 
-        Behaviour cGBot = new CardGameBot(accountRoom);
+        StandardBehaviour cGBot = new CardGameBot(accountRoom);
+        cGBot.enableLogging(logger);
         Session cGRoom = EuphoriaSession.getRoom(room, cookie);
         cGBot.add(cGRoom);
 

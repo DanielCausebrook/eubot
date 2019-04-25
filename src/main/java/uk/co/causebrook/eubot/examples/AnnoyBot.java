@@ -12,7 +12,10 @@ public class AnnoyBot extends StandardBehaviour {
     private ScheduledExecutorService ex = Executors.newScheduledThreadPool(1);
     public AnnoyBot(Session accountRoom) {
         super("AnnoyBot", "You're the one who needs help.");
-        enableKill("Rude.", e -> ex.shutdownNow());
+        enableKill(e -> {
+            e.reply("Rude.");
+            ex.shutdownNow();
+        });
         addMessageListener(new RegexListener("^!annoy @([\\S]+)$", (e, m) -> {
             e.getSession().requestUsersByName(m.group(1), "\\s").thenAccept(e2 -> {
                 if(e2.isEmpty()) {

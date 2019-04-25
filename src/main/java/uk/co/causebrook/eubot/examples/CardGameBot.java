@@ -1,7 +1,10 @@
 package uk.co.causebrook.eubot.examples;
 
+import uk.co.causebrook.eubot.Behaviour;
+import uk.co.causebrook.eubot.Connection;
 import uk.co.causebrook.eubot.Session;
 import uk.co.causebrook.eubot.StandardBehaviour;
+import uk.co.causebrook.eubot.events.ConnectionListener;
 import uk.co.causebrook.eubot.events.PacketEvent;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.commands.Send;
@@ -11,14 +14,20 @@ import uk.co.causebrook.eubot.relay.RelayMessage;
 import uk.co.causebrook.eubot.relay.RelayMessageThread;
 import uk.co.causebrook.eubot.relay.SharedMessageThread;
 
+import javax.websocket.CloseReason;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CardGameBot extends StandardBehaviour {
+    private UnoGame game;
+    private Logger logger;
+
     public CardGameBot(Session accountRoom) {
         super("CardGameBot", "Hi, I run card games! Type !play [game] to start one.\nCurrently supported games:\nUno");
         addMessageListener(new RegexListener("^!play Uno$", (e) -> {
@@ -34,7 +43,9 @@ public class CardGameBot extends StandardBehaviour {
                                     if(players.size() == 2) rE.getSession().send(new Send("Enough players have joined to !start game.", rE.getData().getParent()));
                                 } else if(Pattern.matches("^!start$", rE.getContent())) {
                                     if(players.size() > 1) {
-                                        new Thread(new UnoGame(accountRoom, e.getSession(), e.getData(), players)).start();
+                                        game = new UnoGame(accountRoom, e.getSession(), e.getData(), players);
+                                        if(logger != null) game.setLogger(logger);
+                                        new Thread(game).start();
                                         expired[0] = true;
                                     }
                                 }
@@ -43,11 +54,20 @@ public class CardGameBot extends StandardBehaviour {
         }));
     }
 
+    @Override
+    public void enableLogging(Logger logger) {
+        super.enableLogging(logger);
+        this.logger = logger;
+        if(game != null) game.setLogger(logger);
+    }
+
     public class UnoGame implements Runnable {
         private Session accountRoom;
         private Session root;
         private SendEvent rootMsg;
         private List<SessionView> playerViews;
+        private Behaviour pmBehaviour = new Behaviour();
+        private Logger logger;
         private SharedMessageThread pool;
         private boolean gameRunning = true;
         private Duration timeoutLength = Duration.ofMinutes(3);
@@ -67,6 +87,15 @@ public class CardGameBot extends StandardBehaviour {
             this.root = root;
             this.rootMsg = rootMsg;
             playerViews = players;
+
+            pmBehaviour.addConnectionListener(new ConnectionListener() {
+                @Override public void onConnect(Connection c) {}
+                @Override public void onDisconnect(Connection c, CloseReason closeReason) {}
+                @Override
+                public void onError(Connection c, Throwable err) {
+                    if(logger != null) logger.log(Level.SEVERE, "An exception has occurred in PM room for CardGameBot.", err);
+                }
+            });
 
             for(int color = 0; color < 4; color++) {
                 String r = "";
@@ -277,6 +306,10 @@ public class CardGameBot extends StandardBehaviour {
             gameRunning = false;
         }
 
+        public void setLogger(Logger logger) {
+            this.logger = logger;
+        }
+
         @Override
         public void run() {
             try {
@@ -290,6 +323,7 @@ public class CardGameBot extends StandardBehaviour {
                 List<Session> pms = new ArrayList<>();
                 for(CompletableFuture<Session> fut : futPms) {
                     Session pm = fut.get();
+                    pmBehaviour.add(pm);
                     pm.setNick("CardGamesBot");
                     pm.open();
                     futRoots.add(

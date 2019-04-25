@@ -5,6 +5,7 @@ import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.events.DisconnectEvent;
 import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 
+import javax.websocket.CloseReason;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,13 +26,13 @@ public class Behaviour {
     private MessageListener mHandler = this::handleMessage;
     private SessionListener sHandler = new SessionListener() {
         @Override public void onJoin(SessionEvent<SnapshotEvent> e)         { sListeners.forEach(l -> l.onJoin(e));       }
-        @Override public void onBounce(RoomBounceEvent e)                  { sListeners.forEach(l -> l.onBounce(e));     }
+        @Override public void onBounce(RoomBounceEvent e)                   { sListeners.forEach(l -> l.onBounce(e));     }
         @Override public void onDisconnect(SessionEvent<DisconnectEvent> e) { sListeners.forEach(l -> l.onDisconnect(e)); }
     };
     private ConnectionListener cHandler = new ConnectionListener() {
-        @Override public void onConnect(Connection c)              { cListeners.forEach(l -> l.onConnect(c));    }
-        @Override public void onDisconnect(Connection c)           { cListeners.forEach(l -> l.onDisconnect(c)); }
-        @Override public void onError(Connection c, Throwable err) { cListeners.forEach(l -> l.onError(c, err)); }
+        @Override public void onConnect(Connection c)                    { cListeners.forEach(l -> l.onConnect(c));        }
+        @Override public void onDisconnect(Connection c, CloseReason cR) { cListeners.forEach(l -> l.onDisconnect(c, cR)); }
+        @Override public void onError(Connection c, Throwable err)       { cListeners.forEach(l -> l.onError(c, err));     }
     };
 
     public Behaviour() {}

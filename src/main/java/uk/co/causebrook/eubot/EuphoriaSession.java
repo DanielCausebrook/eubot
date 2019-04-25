@@ -110,8 +110,11 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     private void initSessionListeners() {
         addPacketListener(SendEvent.class, p -> {
             for(MessageListener mL : mListeners) mL.onPacket(new MessageEvent<>(this, p.getPacket()));
-            for(MessageListener mL : rListeners.get(p.getData().getParent()))
-                mL.onPacket(new MessageEvent<>(this, p.getPacket()));
+            String parent = p.getData().getParent();
+            if(parent != null && rListeners.containsKey(parent)){
+                for(MessageListener mL : rListeners.get(parent))
+                    mL.onPacket(new MessageEvent<>(this, p.getPacket()));
+            }
         });
         addPacketListener(SnapshotEvent.class, p -> {
             for(SessionListener rCL : sListeners) rCL.onJoin(new SessionEvent<>(this, p.getPacket()));
@@ -147,29 +150,30 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     @Override
     public CompletableFuture<MessageEvent<?>> send(String message) {
-        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
-        return send(new Send(message)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
+        long stamp = nickLock.readLock();
+        CompletableFuture<MessageEvent<?>> response = send(new Send(message))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+        nickLock.unlockRead(stamp);
+        return response;
     }
 
     @Override
     public CompletableFuture<MessageEvent<?>> reply(String message, String parentId) {
-        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
-        return send(new Send(message, parentId)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
+        long stamp = nickLock.readLock();
+        CompletableFuture<MessageEvent<?>> response = send(new Send(message, parentId))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+        nickLock.unlockRead(stamp);
+        return response;
     }
 
     private CompletableFuture<MessageEvent<?>> sendAs(Send message, String tempNick) {
-        var wrapper = new Object(){ long stamp = nickLock.writeLock(); String oldNick = currNick; };
-        return send(new Nick(tempNick))
-                .thenCompose(e -> send(message))
-                .whenComplete((e, ex) -> send(new Nick(wrapper.oldNick))
-                        .whenComplete((nE, nEx) -> {
-                            if(nEx != null) logger.log(Level.WARNING, "sendAs call was unable to reset the nick.", nEx);
-                            nickLock.unlockWrite(wrapper.stamp);
-                        })
-                )
-                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+        long stamp = nickLock.writeLock();
+        String oldNick = currNick;
+        send(new Nick(tempNick));
+        CompletableFuture<MessageEvent<?>> response = send(message).thenApply(e -> new MessageEvent<>(this, e.getPacket()));
+        send(new Nick(oldNick));
+        nickLock.unlockWrite(stamp);
+        return response;
     }
 
     @Override
@@ -185,8 +189,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
 
     @Override
     public void addMessageReplyListener(String messageId, MessageListener replyListener) {
-        rListeners.putIfAbsent(messageId, new CopyOnWriteArrayList<>());
-        rListeners.get(messageId).add(replyListener);
+        rListeners.computeIfAbsent(messageId, k -> new CopyOnWriteArrayList<>()).add(replyListener);
     }
 
     @Override

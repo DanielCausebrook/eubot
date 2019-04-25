@@ -29,10 +29,11 @@ import java.util.logging.Logger;
 public class WebsocketConnection extends Endpoint implements Connection {
     private long nextId = 0;
     private Map<String, CompletableFuture<?>> idListeners = new HashMap<>(); // Currently for error handling only.
+    private Map<String, FutureResponse<?>> futureResponses = new ConcurrentHashMap<>();
     private final URI server;
     private final CookieConfig cookie;
     private javax.websocket.Session session;
-    private final Map<Type, List<PacketListener>> pListeners = new ConcurrentHashMap<>();
+    private final Map<Type, List<PacketListener<?>>> pListeners = new ConcurrentHashMap<>();
     private final List<ConnectionListener> cListeners = new CopyOnWriteArrayList<>();
     private static final Logger logger = Logger.getLogger("connection-log");
 
@@ -56,15 +57,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
     @Override
     public void onClose(javax.websocket.Session session, CloseReason reason) {
         if(session.equals(this.session)) this.session = null;
-        for (ConnectionListener l : cListeners) l.onDisconnect(this);
-        //TODO Pass close reason to listeners.
-//        if(reason.getCloseCode().equals(CloseReason.CloseCodes.SERVICE_RESTART)) {
-//            try {
-//                open();
-//            } catch(IOException e) {
-//                for(ConnectionListener l : cListeners) l.onError(this, e);
-//            }
-//        }
+        for (ConnectionListener l : cListeners) l.onDisconnect(this, reason);
     }
 
     @Override
@@ -74,7 +67,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
 
     private void onMessage(String message) {
         try {
-            Packet<? extends Data> p = Packet.fromJson(message);
+            Packet<?> p = Packet.fromJson(message);
             handle(p);
         } catch (JsonParseException e) {
             logger.info(e.getMessage());
@@ -85,12 +78,19 @@ public class WebsocketConnection extends Endpoint implements Connection {
     @SuppressWarnings("unchecked")
     private <T extends Data> void handle(Packet<T> p) {
         if(p.getData() == null) {
-            if(idListeners.containsKey(p.getId()))
-                idListeners.get(p.getId()).completeExceptionally(new PacketException(p.getError()));
+
+            if(p.getId() != null && futureResponses.containsKey(p.getId()))
+                futureResponses.get(p.getId()).completeExceptionally(new PacketException((p.getError())));
             return;
         }
+
+        //Listeners for responses
+        if(p.getId() != null && futureResponses.containsKey(p.getId())) {
+            futureResponses.get(p.getId()).complete(new PacketEvent<>(this, p));
+        }
+
         // Listeners for this packet type.
-        List<PacketListener> listenerList = pListeners.get(p.getData().getClass());
+        List<PacketListener<?>> listenerList = pListeners.get(p.getData().getClass());
         if(listenerList != null) for (PacketListener l : listenerList) {
             ((PacketListener<T>) l).onPacket(new PacketEvent<>(this, p));
         }
@@ -141,7 +141,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
 
     public void restart(String reason) throws IOException {
         session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART , reason));
-        open(); //TODO Verify calling open() is permitted before websocket close.
+        open();
     }
 
     @Override
@@ -153,28 +153,37 @@ public class WebsocketConnection extends Endpoint implements Connection {
     public <T extends Data> CompletableFuture<PacketEvent<T>> send(ReplyableData<T> d) {
         if(!isOpen()) throw new IllegalStateException("Connection not open yet.");
 
-        CompletableFuture<PacketEvent<T>> event = new CompletableFuture<>();
+        final String id = Long.toHexString(nextId++);
 
-        final String id = Long.toHexString(nextId);
-        idListeners.put(id, event);
-        //TODO Use idListeners to handle all packet responses, not just packet error responses.
-        //  Problem: type-safety with CompletableFuture<?>
-        //TODO Add timeouts so listeners waiting on a response complete exceptionally after a time.
-        final PacketListener<T> replyListener = new PacketListener<>() {
-            @Override
-            public void onPacket(PacketEvent<T> e) {
-                if (e.getPacket().getId().equals(id)) {
-                    event.complete(e);
-                    idListeners.remove(id);
-                    removePacketListener(d.getReplyClass(), this);
-                }
-            }
-        };
-        addPacketListener(d.getReplyClass(), replyListener);
-        nextId++;
+        CompletableFuture<PacketEvent<T>> response = new CompletableFuture<>();
+        FutureResponse<T> futureResponse = new FutureResponse<>(d.getReplyClass(), response);
+        futureResponses.put(id, futureResponse);
 
         session.getAsyncRemote().sendText(d.toPacket(id).toJson());
-        return event;
+        return response;
+    }
+
+    private class FutureResponse<T extends Data> {
+        private Type responseType;
+        private CompletableFuture<PacketEvent<T>> futureResponse;
+
+        public FutureResponse(Class<T> responseType, CompletableFuture<PacketEvent<T>> response) {
+            this.responseType = responseType;
+            this.futureResponse = response;
+        }
+
+        // Safe due to class type being checked manually.
+        @SuppressWarnings("unchecked")
+        public void complete(PacketEvent<?> response) {
+            if(response.getData().getClass().equals(responseType)) {
+                futureResponse.complete((PacketEvent<T>) response);
+            }
+        }
+
+        public void completeExceptionally(Throwable ex) {
+            futureResponse.completeExceptionally(ex);
+        }
+
     }
 
     public boolean hasCookie() {
