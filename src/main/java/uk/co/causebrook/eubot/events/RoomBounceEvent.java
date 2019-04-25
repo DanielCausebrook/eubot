@@ -20,9 +20,9 @@ public class RoomBounceEvent extends PacketEvent<BounceEvent> {
      */
     public void attemptLogin(String passcode) {
         if(failHandler == null) {
-            getRoomConnection().send(new Auth(passcode));
+            getConnection().send(new Auth(passcode));
         } else {
-            getRoomConnection().send(new Auth(passcode))
+            getConnection().send(new Auth(passcode))
                     .thenAccept(e -> {
                         if (e.getData().getSuccess()) successHandler.onPacket(e);
                         else failHandler.onPacket(e);

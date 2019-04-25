@@ -9,16 +9,10 @@ import uk.co.causebrook.eubot.packets.replies.SendReply;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-public class MessageEvent<T extends SendEvent> extends PacketEvent<T> {
-    private final Session session;
+public class MessageEvent<T extends SendEvent> extends SessionEvent<T> {
 
     public MessageEvent(Session session, Packet<T> packet) {
         super(session, packet);
-        this.session = session;
-    }
-
-    public Session getSession() {
-        return session;
     }
 
     public String getContent() {
@@ -38,15 +32,15 @@ public class MessageEvent<T extends SendEvent> extends PacketEvent<T> {
     }
 
     public void addReplyListener(MessageListener replyListener) {
-        session.addMessageReplyListener(getData(), replyListener);
+        getSession().addMessageReplyListener(getData(), replyListener);
     }
 
-    public void addReplyListener(MessageListener replyListener, Duration timeout) {
-        session.addMessageReplyListener(getData(),replyListener, timeout);
+    public boolean removeReplyListener(MessageListener replyListener) {
+        return getSession().removeMessageReplyListener(getData(), replyListener);
     }
 
     public CompletableFuture<MessageEvent<?>> reply(String text) {
-        return session.send(new Send(text, getData().getId()))
-                .thenApply(e-> new MessageEvent<>(session, e.getPacket()));
+        return getSession().send(new Send(text, getData().getId()))
+                .thenApply(e-> new MessageEvent<>(getSession(), e.getPacket()));
     }
 }

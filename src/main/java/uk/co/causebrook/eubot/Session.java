@@ -54,18 +54,20 @@ public interface Session extends Connection {
     /**
      * Send a message in the room as a reply to another message.
      * @param message The message content.
-     * @param parent The parent message to reply to.
-     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
-     */
-    CompletableFuture<MessageEvent<?>> reply(String message, SendEvent parent);
-
-    /**
-     * Send a message in the room as a reply to another message.
-     * @param message The message content.
      * @param parentId The id of the parent message to reply to.
      * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
     CompletableFuture<MessageEvent<?>> reply(String message, String parentId);
+
+    /**
+     * Send a message in the room as a reply to another message.
+     * @param message The message content.
+     * @param parent The parent message to reply to.
+     * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
+     */
+    default CompletableFuture<MessageEvent<?>> reply(String message, SendEvent parent) {
+        return reply(message, parent.getId());
+    }
 
     /**
      * Send a message in the room at the root level with a specified nick.
@@ -81,20 +83,22 @@ public interface Session extends Connection {
      * This will block all other message sends until the nick is reverted.
      * @param message The message content.
      * @param nick The temporary nick to send the message as.
-     * @param parent The parent message to reply to.
+     * @param parentId The id of the parent message to reply to.
      * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
-    CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, SendEvent parent);
+    CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, String parentId);
 
     /**
      * Send a message in the room as a reply to another message with a specified nick.
      * This will block all other message sends until the nick is reverted.
      * @param message The message content.
      * @param nick The temporary nick to send the message as.
-     * @param parentId The id of the parent message to reply to.
+     * @param parent The parent message to reply to.
      * @return A CompletableFuture that will contain the server's response. Will complete exceptionally if there is an error or timeout.
      */
-    CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, String parentId);
+    default CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, SendEvent parent) {
+        return replyAs(message, nick, parent.getId());
+    }
 
     /**
      * Send a request to get the full message content of a message which has been truncated.
@@ -114,23 +118,39 @@ public interface Session extends Connection {
         return send(new GetMessage(message)).thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
-    //TODO Add the ability to remove message reply listeners.
+    /**
+     * Add a listener that is fired when replies to a specified message are received.
+     * @param messageId The message to listen for replies to.
+     * @param replyListener The listener to add.
+     */
+    void addMessageReplyListener(String messageId, MessageListener replyListener);
 
     /**
      * Add a listener that is fired when replies to a specified message are received.
      * @param message The message to listen for replies to.
      * @param replyListener The listener to add.
      */
-    void addMessageReplyListener(SendEvent message, MessageListener replyListener);
+    default void addMessageReplyListener(SendEvent message, MessageListener replyListener) {
+        addMessageReplyListener(message.getId(), replyListener);
+    }
 
     /**
-     * Add a listener that is fired when replies to a specified message are received.
-     * The listener will expire and be removed after the specified duration.
-     * @param message The message to listen for replies to.
-     * @param replyListener The listener to add.
-     * @param timeout The duration before which the listener is to be automatically removed.
+     * Removes a message reply listener, if present.
+     * @param messageId The id of the message the listener is listening for replies to.
+     * @param replyListener The listener to remove.
+     * @return true if the listener was present.
      */
-    void addMessageReplyListener(SendEvent message, MessageListener replyListener, Duration timeout);
+    boolean removeMessageReplyListener(String messageId, MessageListener replyListener);
+
+    /**
+     * Removes a message reply listener, if present.
+     * @param message The message the listener is listening for replies to.
+     * @param replyListener The listener to remove.
+     * @return true if the listener was present.
+     */
+    default boolean removeMessageReplyListener(SendEvent message, MessageListener replyListener) {
+        return removeMessageReplyListener(message.getId(), replyListener);
+    }
 
     /**
      * Add a listener which monitors the state of the session.
@@ -140,10 +160,11 @@ public interface Session extends Connection {
     void addSessionListener(SessionListener listener);
 
     /**
-     * Remove an existing SessionListener.
+     * Remove a SessionListener, if present.
      * @param listener The listener to remove.
+     * @return true if the listener was present.
      */
-    void removeSessionListener(SessionListener listener);
+    boolean removeSessionListener(SessionListener listener);
 
     /**
      * Add a listener that is fired when any other user sends a message in the room.
@@ -152,10 +173,10 @@ public interface Session extends Connection {
     void addMessageListener(MessageListener listener);
 
     /**
-     * Removes an existing MessageListener.
+     * Removes a MessageListener, if present.
      * @param listener The listener to remove.
      */
-    void removeMessageListener(MessageListener listener);
+    boolean removeMessageListener(MessageListener listener);
 
     /**
      * Requests a PM room with another user, and returns a new Session for connecting to it.
@@ -175,7 +196,7 @@ public interface Session extends Connection {
      * Gets a list of all users in the current room that have the specified nick.
      * A list of characters can be specified which will be ignored in both the input string and the requested nicks.
      * For example:
-     *     getUsersByName("Bot Bot", "\\s")
+     *     requestUsersByName("Bot Bot", "\\s")
      *     will return any users named:
      *     "BotBot", "Bot Bot", "Bo  tB ot" etc.
      *     since any whitespace characters are ignored.
@@ -183,5 +204,5 @@ public interface Session extends Connection {
      * @param regexIgnored A regex matching any characters or groups that should be ignored.
      * @return A list of users which have the requested name.
      */
-    CompletableFuture<List<SessionView>> getUsersByName(String name, String regexIgnored);
+    CompletableFuture<List<SessionView>> requestUsersByName(String name, String regexIgnored);
 }

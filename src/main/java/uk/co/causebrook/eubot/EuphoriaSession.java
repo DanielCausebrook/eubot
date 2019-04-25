@@ -1,18 +1,16 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.*;
-import uk.co.causebrook.eubot.packets.Packet;
 import uk.co.causebrook.eubot.packets.commands.*;
 import uk.co.causebrook.eubot.packets.events.*;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.packets.replies.NickReply;
-import uk.co.causebrook.eubot.packets.replies.SendReply;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.StampedLock;
 import java.util.logging.Level;
@@ -23,7 +21,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     private static Logger logger = Logger.getLogger("connection-log");
     private final List<SessionListener> sListeners = new CopyOnWriteArrayList<>();
     private final List<MessageListener> mListeners = new CopyOnWriteArrayList<>();
-    private ScheduledExecutorService listenerTimeouts = Executors.newScheduledThreadPool(1);
+    private final Map<String, List<MessageListener>> rListeners = new ConcurrentHashMap<>();
     private SessionView session;
     private String currNick;
     private CompletableFuture<PacketEvent<NickReply>> nickInitListener;
@@ -75,7 +73,7 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public CompletableFuture<List<SessionView>> getUsersByName(String name, String regexIgnored) {
+    public CompletableFuture<List<SessionView>> requestUsersByName(String name, String regexIgnored) {
         String modifiedName = name.replaceAll(regexIgnored, "");
         CompletableFuture<List<SessionView>> futMatchingUsers = new CompletableFuture<>();
         send(new Who()).thenAccept(e2 -> {
@@ -112,25 +110,29 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     private void initSessionListeners() {
         addPacketListener(SendEvent.class, p -> {
             for(MessageListener mL : mListeners) mL.onPacket(new MessageEvent<>(this, p.getPacket()));
+            for(MessageListener mL : rListeners.get(p.getData().getParent()))
+                mL.onPacket(new MessageEvent<>(this, p.getPacket()));
         });
         addPacketListener(SnapshotEvent.class, p -> {
-            for(SessionListener rCL : sListeners) rCL.onJoin(p);
+            for(SessionListener rCL : sListeners) rCL.onJoin(new SessionEvent<>(this, p.getPacket()));
         });
         addPacketListener(BounceEvent.class, p -> {
             for(SessionListener rCL : sListeners) rCL.onBounce(new RoomBounceEvent(this, p.getPacket()));
         });
         addPacketListener(DisconnectEvent.class, p -> {
-            for(SessionListener rCL : sListeners) rCL.onDisconnect(p);
+            for(SessionListener rCL : sListeners) rCL.onDisconnect(new SessionEvent<>(this, p.getPacket()));
         });
 
     }
 
+    @Override
     public void addSessionListener(SessionListener listener) {
         sListeners.add(listener);
     }
 
-    public void removeSessionListener(SessionListener listener) {
-        sListeners.remove(listener);
+    @Override
+    public boolean removeSessionListener(SessionListener listener) {
+        return sListeners.remove(listener);
     }
 
     @Override
@@ -139,21 +141,14 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public void removeMessageListener(MessageListener listener) {
-        mListeners.remove(listener);
+    public boolean removeMessageListener(MessageListener listener) {
+        return mListeners.remove(listener);
     }
 
     @Override
     public CompletableFuture<MessageEvent<?>> send(String message) {
         var wrapper = new Object(){ long stamp = nickLock.readLock(); };
         return send(new Send(message)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
-                .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
-    }
-
-    @Override
-    public CompletableFuture<MessageEvent<?>> reply(String message, SendEvent parent) {
-        var wrapper = new Object(){ long stamp = nickLock.readLock(); };
-        return send(new Send(message, parent)).whenComplete((e, ex) -> nickLock.unlockRead(wrapper.stamp))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
@@ -174,7 +169,6 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
                             nickLock.unlockWrite(wrapper.stamp);
                         })
                 )
-                .whenComplete((e, ex) -> nickLock.unlockWrite(wrapper.stamp))
                 .thenApply(e -> new MessageEvent<>(this, e.getPacket()));
     }
 
@@ -184,33 +178,21 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
-    public CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, SendEvent parent) {
-        return sendAs(new Send(message, parent), nick);
-    }
-
-    @Override
     public CompletableFuture<MessageEvent<?>> replyAs(String message, String nick, String parentId) {
         return sendAs(new Send(message, parentId), nick);
     }
 
+
     @Override
-    public void addMessageReplyListener(SendEvent message, MessageListener replyListener) {
-        addMessageListener(e2 -> {
-            if(message.getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
-        });
+    public void addMessageReplyListener(String messageId, MessageListener replyListener) {
+        rListeners.putIfAbsent(messageId, new CopyOnWriteArrayList<>());
+        rListeners.get(messageId).add(replyListener);
     }
 
     @Override
-    public void addMessageReplyListener(SendEvent message, MessageListener replyListener, Duration timeout) {
-        MessageListener l = e2 -> {
-            if(message.getId().equals(e2.getData().getParent())) replyListener.onPacket(e2);
-        };
-        addMessageListener(l);
-        listenerTimeouts.schedule(
-                () -> removeMessageListener(l),
-                timeout.toMillis(),
-                TimeUnit.MILLISECONDS
-        );
+    public boolean removeMessageReplyListener(String messageId, MessageListener replyListener) {
+        if(!rListeners.containsKey(messageId)) return false;
+        return rListeners.get(messageId).remove(replyListener);
     }
 
     @Override
@@ -224,7 +206,6 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
             var wrapper = new Object() { long stamp = nickLock.writeLock(); };
             return send(new Nick(nick))
                     .whenComplete((e, ex)-> nickLock.unlockWrite(wrapper.stamp));
-
         } else {
             this.currNick = nick;
             return nickInitListener = new CompletableFuture<>();

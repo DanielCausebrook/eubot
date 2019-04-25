@@ -21,7 +21,7 @@ public class PacketEvent<T extends Data> {
         return packet.getData();
     }
 
-    public Connection getRoomConnection() {
+    public Connection getConnection() {
         return connection;
     }
 }

@@ -9,7 +9,7 @@ public interface SessionListener {
     /**
      * Indicates that the session has successfully joined the room.
      */
-    void onJoin(PacketEvent<SnapshotEvent> e);
+    void onJoin(SessionEvent<SnapshotEvent> e);
 
     /**
      * Indicates that the room is private and the user must authorise themselves.
@@ -19,5 +19,5 @@ public interface SessionListener {
     /**
      * Indicates that the server is about to disconnect the client.
      */
-    void onDisconnect(PacketEvent<DisconnectEvent> e);
+    void onDisconnect(SessionEvent<DisconnectEvent> e);
 }

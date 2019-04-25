@@ -24,9 +24,9 @@ public class Behaviour {
     private PacketListener<Data> pHandler = this::handlePacket;
     private MessageListener mHandler = this::handleMessage;
     private SessionListener sHandler = new SessionListener() {
-        @Override public void onJoin(PacketEvent<SnapshotEvent> e)         { sListeners.forEach(l -> l.onJoin(e));       }
+        @Override public void onJoin(SessionEvent<SnapshotEvent> e)         { sListeners.forEach(l -> l.onJoin(e));       }
         @Override public void onBounce(RoomBounceEvent e)                  { sListeners.forEach(l -> l.onBounce(e));     }
-        @Override public void onDisconnect(PacketEvent<DisconnectEvent> e) { sListeners.forEach(l -> l.onDisconnect(e)); }
+        @Override public void onDisconnect(SessionEvent<DisconnectEvent> e) { sListeners.forEach(l -> l.onDisconnect(e)); }
     };
     private ConnectionListener cHandler = new ConnectionListener() {
         @Override public void onConnect(Connection c)              { cListeners.forEach(l -> l.onConnect(c));    }

@@ -1,7 +1,7 @@
 package uk.co.causebrook.eubot.examples;
 
 import uk.co.causebrook.eubot.*;
-import uk.co.causebrook.eubot.events.RegexListener;
+import uk.co.causebrook.eubot.events.*;
 import uk.co.causebrook.eubot.packets.commands.Login;
 import uk.co.causebrook.eubot.packets.events.BounceEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
@@ -13,12 +13,13 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class TestBot {
+    public static boolean set = false;
+
     public static void main(String[] args) throws Exception /*cos I'm lazy*/ {
         Logger logger = Logger.getLogger("test-log");
 
@@ -33,11 +34,33 @@ public class TestBot {
                 })
         );
 
-
+        ScheduledExecutorService ex = Executors.newScheduledThreadPool(1);
+        Behaviour annoyBot = new StandardBehaviour("AnnoyBot", "You're the one who needs help.");
+        annoyBot.addMessageListener(new RegexListener("^!annoy @([\\S]+)$", (e,m) -> {
+            e.getSession().requestUsersByName(m.group(1), "\\s").thenAccept(e2 -> {
+                if(e2.isEmpty()) {
+                    e.reply("Couldn't find user " + m.group(1) + ", sorry.");
+                } else {
+                    for(int i = 0; i < 30; i+=5) ex.schedule(() -> accountRoom.initPM(e2.get(0)), i, TimeUnit.SECONDS);
+                    e.reply("Annoying " + m.group(1) + " for 20 minutes.");
+                }
+            });
+        }));
+        annoyBot.addMessageListener(new RegexListener("^!kill @AnnoyBot$", (e, m) -> {
+            e.reply("Rude.").orTimeout(10, TimeUnit.SECONDS)
+                    .whenComplete((rE, rEx) -> {
+                        try {
+                            e.getSession().close();
+                        } catch (IOException exc) {
+                            exc.printStackTrace();
+                        }
+            });
+            ex.shutdownNow();
+        }));
 
         Behaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
-        tauBot.addMessageListener(new RegexListener("^chirp!?$", (((e, m) -> {
-            if(m.matches() && e.getSenderNick().equals("bbb")) e.reply("chirp!");
+        tauBot.addMessageListener(new RegexListener("^chirp!?$", ((e -> {
+            if(e.getSenderNick().equals("bbb")) e.reply("chirp!");
         }))));
 
 
@@ -51,7 +74,7 @@ public class TestBot {
                         String[] users = usersStr.split(" @");
                         List<CompletableFuture<Session>> futPms = new ArrayList<>();
                         for(int i = 1; i < users.length; i++) {
-                            List<SessionView> matchingUsers = e.getSession().getUsersByName(users[i], "\\s").get();
+                            List<SessionView> matchingUsers = e.getSession().requestUsersByName(users[i], "\\s").get();
                             if(matchingUsers.isEmpty()) {
                                 e.reply("Could not find user " + users[i] + ".");
                                 return;
@@ -89,17 +112,21 @@ public class TestBot {
                     }
                 }).start()
         ));
+        String room = "test";
         CookieConfig cookie = new CookieConfig("cookie.txt");
-        Session tauRoom = EuphoriaSession.getRoom("test", cookie);
-        Session pmRoom = EuphoriaSession.getRoom("test", cookie);
-        Session cGRoom = EuphoriaSession.getRoom("test", cookie);
+        Session tauRoom = EuphoriaSession.getRoom(room, cookie);
+        Session annoyRoom = EuphoriaSession.getRoom(room, cookie);
+        Session pmRoom = EuphoriaSession.getRoom(room, cookie);
+        Session cGRoom = EuphoriaSession.getRoom(room, cookie);
         cGBot.add(cGRoom);
         tauBot.add(tauRoom);
+        annoyBot.add(annoyRoom);
         pmBot.add(pmRoom);
         pmBot.add(accountRoom);
         cGRoom.open();
         accountRoom.open();
         tauRoom.open();
+        //annoyRoom.open();
         pmRoom.open();
 
         Thread.sleep(Duration.ofDays(1).toMillis());

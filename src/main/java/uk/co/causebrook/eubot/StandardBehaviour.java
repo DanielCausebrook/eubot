@@ -17,11 +17,11 @@ public class StandardBehaviour extends Behaviour {
         HashMap<Connection, LocalDateTime> roomUptimes = new HashMap<>();
         final LocalDateTime uptime = LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS);
         addPacketListener(SnapshotEvent.class,
-                e -> roomUptimes.put(e.getRoomConnection(), LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS))
+                e -> roomUptimes.put(e.getConnection(), LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS))
         );
         addMessageListener(new RegexListener("^!uptime @" + quotedNick + "$", (e) -> {
             e.reply("/me has been up since " + uptime.toString());
-            LocalDateTime roomUptime = roomUptimes.get(e.getRoomConnection());
+            LocalDateTime roomUptime = roomUptimes.get(e.getConnection());
             if(roomUptime != null) e.reply("/me has been online in this room since " + roomUptime.toString());
         }));
         addMessageListener(new RegexListener("^!ping( @" + quotedNick + ")?$", (e) -> e.reply("Pong!")));

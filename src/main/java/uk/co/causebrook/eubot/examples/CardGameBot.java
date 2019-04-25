@@ -38,7 +38,7 @@ public class CardGameBot extends StandardBehaviour {
                                         expired[0] = true;
                                     }
                                 }
-                            }, Duration.ofHours(1)
+                            }
             ));
         }));
     }
