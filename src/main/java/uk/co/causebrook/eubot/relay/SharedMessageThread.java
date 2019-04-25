@@ -62,10 +62,12 @@ public class SharedMessageThread {
         mListeners.remove(l);
     }
 
-    public void shareMessage(RelayMessage message) {
+    public CompletableFuture<SharedMessage> shareMessage(RelayMessage message) {
         if(!sharedMessages.containsKey(message.getParent())) throw new IllegalArgumentException("The provided RelayMessage does not exist in this SharedThread.");
-        sharedMessages.get(message.getParent())
+        return sharedMessages.get(message.getParent())
                 .shareChild(message)
-                .thenAccept((child) -> mListeners.forEach((l) -> l.onMessage(child)));
+                .whenComplete((child, ex) -> {
+                    if(child != null) mListeners.forEach((l) -> l.onMessage(child));
+                });
     }
 }

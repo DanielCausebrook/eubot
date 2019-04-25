@@ -42,7 +42,7 @@ public class PmBot extends StandardBehaviour {
                         SharedMessageThread t = SharedMessageThread.openPoolWithMessage(pms, "New PM with: @" + e.getSenderNick().replaceAll("\\s", "") + " " + usersStr + ". Any replies to this thread will be sent privately.");;
                         t.getThreads().forEach(thread -> thread.addMessageListener(t::shareMessage));
                         t.addMessageListener(sM -> {
-                            if(sM.getMessages().get(0).getData().getContent().equals("!close")){
+                            if(sM.getMessages().get(0).getContent().equals("!close")){
                                 sM.reply("Closing PM...");
                                 t.getRoot().reply("PM will now be closed. New replies will not be shared.");
                                 for(Session pm : pms) {

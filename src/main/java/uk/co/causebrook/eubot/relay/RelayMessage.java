@@ -15,6 +15,18 @@ public class RelayMessage {
         this.data = data;
     }
 
+    public String getContent() {
+        return data.getContent();
+    }
+
+    public String getSenderNick() {
+        return data.getSender().getName();
+    }
+
+    public String getSenderId() {
+        return data.getSender().getId();
+    }
+
     public CompletableFuture<RelayMessage> reply(String message) {
         return thread.reply(message, this);
     }
