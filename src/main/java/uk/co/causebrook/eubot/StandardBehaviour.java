@@ -1,15 +1,25 @@
 package uk.co.causebrook.eubot;
 
 import uk.co.causebrook.eubot.events.ConnectionListener;
+import uk.co.causebrook.eubot.events.MessageListener;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public class StandardBehaviour extends Behaviour {
+    private static Logger logger = Logger.getLogger("connection-log");
+    private boolean killEnabled = false;
+    private String killMessage = null;
+    private MessageListener beforeKill;
     public StandardBehaviour(String nick, String helpText) {
         super(nick);
         String quotedNick = Pattern.quote(nick.replace(" ", ""));
@@ -25,22 +35,30 @@ public class StandardBehaviour extends Behaviour {
             if(roomUptime != null) e.reply("/me has been online in this room since " + roomUptime.toString());
         }));
         addMessageListener(new RegexListener("^!ping( @" + quotedNick + ")?$", (e) -> e.reply("Pong!")));
-        addConnectionListener(new ConnectionListener() {
-            @Override
-            public void onConnect(Connection c) {
-
+        addMessageListener(new RegexListener("^!kill @" + quotedNick + "$", (e, m) -> {
+            if(killEnabled) {
+                if(beforeKill != null) beforeKill.onPacket(e);
+                e.reply("Rude.").orTimeout(10, TimeUnit.SECONDS)
+                        .whenComplete((rE, rEx) -> {
+                            try {
+                                e.getSession().close();
+                            } catch (IOException exc) {
+                                logger.log(Level.WARNING, "Error when exiting room from !kill command.", exc);
+                            }
+                        });
             }
+        }));
+    }
 
-            @Override
-            public void onDisconnect(Connection c) {
+    public void enableKill(String killMessage) {
+        killEnabled = true;
+        this.killMessage = killMessage;
+    }
 
-            }
-
-            @Override
-            public void onError(Connection c, Throwable err) {
-
-            }
-        });
+    public void enableKill(String killMessage, MessageListener beforeKill) {
+        killEnabled = true;
+        this.killMessage = killMessage;
+        this.beforeKill = beforeKill;
     }
 
     // TODO Add room switching.

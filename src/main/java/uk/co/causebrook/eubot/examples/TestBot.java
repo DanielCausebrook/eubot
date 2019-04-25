@@ -18,7 +18,6 @@ import java.util.logging.Logger;
 
 @SuppressWarnings("SpellCheckingInspection")
 public class TestBot {
-    public static boolean set = false;
 
     public static void main(String[] args) throws Exception /*cos I'm lazy*/ {
         Logger logger = Logger.getLogger("test-log");
@@ -34,8 +33,10 @@ public class TestBot {
                 })
         );
 
+
+        StandardBehaviour annoyBot = new StandardBehaviour("AnnoyBot", "You're the one who needs help.");
         ScheduledExecutorService ex = Executors.newScheduledThreadPool(1);
-        Behaviour annoyBot = new StandardBehaviour("AnnoyBot", "You're the one who needs help.");
+        annoyBot.enableKill("Rude.", e -> ex.shutdownNow());
         annoyBot.addMessageListener(new RegexListener("^!annoy @([\\S]+)$", (e,m) -> {
             e.getSession().requestUsersByName(m.group(1), "\\s").thenAccept(e2 -> {
                 if(e2.isEmpty()) {
@@ -46,17 +47,7 @@ public class TestBot {
                 }
             });
         }));
-        annoyBot.addMessageListener(new RegexListener("^!kill @AnnoyBot$", (e, m) -> {
-            e.reply("Rude.").orTimeout(10, TimeUnit.SECONDS)
-                    .whenComplete((rE, rEx) -> {
-                        try {
-                            e.getSession().close();
-                        } catch (IOException exc) {
-                            exc.printStackTrace();
-                        }
-            });
-            ex.shutdownNow();
-        }));
+
 
         Behaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
         tauBot.addMessageListener(new RegexListener("^chirp!?$", ((e -> {
@@ -64,8 +55,10 @@ public class TestBot {
         }))));
 
 
+        StandardBehaviour pmBot = new StandardBehaviour("PmBot", "Hi, I'm @PmBot. I'm a test of TauNeutrin0's new bot PM abilities. Type !pm @User to initiate a private message with them.");
+        pmBot.enableKill("/me exits.");
 
-        Behaviour pmBot = new StandardBehaviour("PmBot", "Hi, I'm @PmBot. I'm a test of TauNeutrin0's new bot PM abilities. Type !pm @User to initiate a private message with them.");
+
         Behaviour cGBot = new CardGameBot(accountRoom);
         pmBot.addMessageListener(new RegexListener("^!pm((?: @[\\S]+)+)$",
                 (e, m) -> new Thread(() -> {
@@ -112,6 +105,8 @@ public class TestBot {
                     }
                 }).start()
         ));
+
+
         String room = "test";
         CookieConfig cookie = new CookieConfig("cookie.txt");
         Session tauRoom = EuphoriaSession.getRoom(room, cookie);
@@ -126,7 +121,7 @@ public class TestBot {
         cGRoom.open();
         accountRoom.open();
         tauRoom.open();
-        //annoyRoom.open();
+        annoyRoom.open();
         pmRoom.open();
 
         Thread.sleep(Duration.ofDays(1).toMillis());
