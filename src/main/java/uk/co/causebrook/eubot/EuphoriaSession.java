@@ -52,6 +52,11 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     @Override
+    public SessionView getSessionView() {
+        return session;
+    }
+
+    @Override
     public CompletableFuture<Session> initPM(String userId) {
         CompletableFuture<Session> pmRoom = new CompletableFuture<>();
         if(hasCookie()) {

@@ -53,6 +53,10 @@ public class RelayMessageThread {
         return root;
     }
 
+    public Session getSession() {
+        return room;
+    }
+
     public void addMessageListener(RelayMessageListener listener) {
         mListeners.add(listener);
     }

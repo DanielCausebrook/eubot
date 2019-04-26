@@ -38,7 +38,7 @@ public class TestBot {
         );
         accountRoom.open();
 
-        String room = "test";
+        String room = "xkcd";
         CookieConfig cookie = new CookieConfig("cookie.txt");
 
         StandardBehaviour tauBot = new StandardBehaviour("TauBot", "Hi, I'm @TauBot. I'll be doing various things as TauNeutrin0 works on his new bot library. Stay tuned!");
@@ -59,10 +59,16 @@ public class TestBot {
         Session annoyRoom = EuphoriaSession.getRoom(room, cookie);
         annoyBot.add(annoyRoom);
 
+        StandardBehaviour portalBot = new PortalBot(cookie);
+        portalBot.enableLogging(logger);
+        Session portalRoom = EuphoriaSession.getRoom(room, cookie);
+        portalBot.add(portalRoom);
+
         tauRoom.open();
         cGRoom.open();
         annoyRoom.open();
         pmRoom.open();
+        portalRoom.open();
 
         Thread.sleep(Duration.ofDays(1).toMillis());
     }

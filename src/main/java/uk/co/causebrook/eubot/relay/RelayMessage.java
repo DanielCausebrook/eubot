@@ -1,10 +1,12 @@
 package uk.co.causebrook.eubot.relay;
 
+import uk.co.causebrook.eubot.Session;
+import uk.co.causebrook.eubot.events.MessageEvent;
 import uk.co.causebrook.eubot.packets.events.SendEvent;
 
 import java.util.concurrent.CompletableFuture;
 
-public class RelayMessage {
+public class RelayMessage{
     private RelayMessageThread thread;
     private SendEvent data;
     private RelayMessage parent;
@@ -41,5 +43,9 @@ public class RelayMessage {
 
     public SendEvent getData() {
         return data;
+    }
+
+    public RelayMessageThread getThread() {
+        return thread;
     }
 }

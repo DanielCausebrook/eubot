@@ -31,6 +31,9 @@ import java.util.concurrent.CompletionStage;
  */
 public interface Session extends Connection {
 
+
+    SessionView getSessionView();
+
     /**
      * Sets the nick of the current session. If the session is not yet open, the stage will complete when the session is opened and the nick is updated.
      * @param nick The nick to change to.
