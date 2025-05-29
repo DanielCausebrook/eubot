@@ -40,15 +40,15 @@ public class EuphoriaSession extends WebsocketConnection implements Session {
     }
 
     public static Session getRoom(String room) throws URISyntaxException {
-        return new EuphoriaSession(new URI("wss://euphoria.io/room/" + room + "/ws"));
+        return new EuphoriaSession(new URI("wss://euphoria.leet.nu/room/" + room + "/ws"));
     }
 
     public static Session getRoom(String room, CookieConfig cookie) throws URISyntaxException {
-        return new EuphoriaSession(new URI("wss://euphoria.io/room/" + room + "/ws"), cookie);
+        return new EuphoriaSession(new URI("wss://euphoria.leet.nu/room/" + room + "/ws"), cookie);
     }
 
     public static Session getPM(String pmid, CookieConfig cookie) throws URISyntaxException {
-        return new EuphoriaSession(new URI("wss://euphoria.io/room/pm:" + pmid + "/ws"), cookie);
+        return new EuphoriaSession(new URI("wss://euphoria.leet.nu/room/pm:" + pmid + "/ws"), cookie);
     }
 
     @Override

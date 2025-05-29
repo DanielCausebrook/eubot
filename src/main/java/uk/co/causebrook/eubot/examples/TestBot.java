@@ -8,7 +8,7 @@ import uk.co.causebrook.eubot.packets.events.BounceEvent;
 import uk.co.causebrook.eubot.packets.fields.SessionView;
 import uk.co.causebrook.eubot.relay.SharedMessageThread;
 
-import javax.websocket.CloseReason;
+import jakarta.websocket.CloseReason;
 import java.io.IOException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;

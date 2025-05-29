@@ -5,7 +5,7 @@ import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.events.DisconnectEvent;
 import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 
-import javax.websocket.CloseReason;
+import jakarta.websocket.CloseReason;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

@@ -8,7 +8,7 @@ import uk.co.causebrook.eubot.packets.Data;
 import uk.co.causebrook.eubot.packets.Packet;
 import uk.co.causebrook.eubot.packets.ReplyableData;
 
-import javax.websocket.*;
+import jakarta.websocket.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -32,7 +32,7 @@ public class WebsocketConnection extends Endpoint implements Connection {
     private Map<String, FutureResponse<?>> futureResponses = new ConcurrentHashMap<>();
     private final URI server;
     private final CookieConfig cookie;
-    private javax.websocket.Session session;
+    private jakarta.websocket.Session session;
     private final Map<Type, List<PacketListener<?>>> pListeners = new ConcurrentHashMap<>();
     private final List<ConnectionListener> cListeners = new CopyOnWriteArrayList<>();
     private static final Logger logger = Logger.getLogger("connection-log");
@@ -48,20 +48,20 @@ public class WebsocketConnection extends Endpoint implements Connection {
     }
 
     @Override
-    public void onOpen(javax.websocket.Session session, EndpointConfig config) {
+    public void onOpen(jakarta.websocket.Session session, EndpointConfig config) {
         this.session = session;
         session.addMessageHandler(String.class, this::onMessage);
         for (ConnectionListener l : cListeners) l.onConnect(this);
     }
 
     @Override
-    public void onClose(javax.websocket.Session session, CloseReason reason) {
+    public void onClose(jakarta.websocket.Session session, CloseReason reason) {
         if(session.equals(this.session)) this.session = null;
         for (ConnectionListener l : cListeners) l.onDisconnect(this, reason);
     }
 
     @Override
-    public void onError(javax.websocket.Session session, Throwable t) {
+    public void onError(jakarta.websocket.Session session, Throwable t) {
         for (ConnectionListener l : cListeners) l.onError(this, t);
     }
 

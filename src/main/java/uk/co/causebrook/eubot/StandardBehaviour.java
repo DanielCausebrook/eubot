@@ -5,7 +5,7 @@ import uk.co.causebrook.eubot.events.MessageListener;
 import uk.co.causebrook.eubot.events.RegexListener;
 import uk.co.causebrook.eubot.packets.events.SnapshotEvent;
 
-import javax.websocket.CloseReason;
+import jakarta.websocket.CloseReason;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;

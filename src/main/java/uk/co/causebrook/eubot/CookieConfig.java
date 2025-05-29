@@ -1,7 +1,7 @@
 package uk.co.causebrook.eubot;
 
-import javax.websocket.ClientEndpointConfig;
-import javax.websocket.HandshakeResponse;
+import jakarta.websocket.ClientEndpointConfig;
+import jakarta.websocket.HandshakeResponse;
 import java.io.IOException;
 import java.net.HttpCookie;
 import java.nio.charset.Charset;

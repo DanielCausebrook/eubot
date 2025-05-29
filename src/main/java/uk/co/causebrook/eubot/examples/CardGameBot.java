@@ -14,7 +14,7 @@ import uk.co.causebrook.eubot.relay.RelayMessage;
 import uk.co.causebrook.eubot.relay.RelayMessageThread;
 import uk.co.causebrook.eubot.relay.SharedMessageThread;
 
-import javax.websocket.CloseReason;
+import jakarta.websocket.CloseReason;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
